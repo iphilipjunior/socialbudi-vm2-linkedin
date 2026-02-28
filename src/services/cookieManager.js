@@ -1,21 +1,18 @@
 /**
- * @fileoverview Cookie manager service.
- * Fetches and updates LinkedIn session cookies stored in Supabase.
- *
- * SECURITY WARNING: Never log the cookie value (li_at).
- * Only log the user_id to confirm the fetch succeeded.
+ * @fileoverview Cookie management service.
+ * Fetches LinkedIn cookies from Supabase for authenticated users.
+ * SECURITY: Never log the cookie value. Log "Fetched cookie for user {userId}" only.
  */
 
 const supabase = require('../config/supabase');
 const logger = require('../utils/logger');
 
 /**
- * Fetches the LinkedIn cookie and user agent for a given user.
- * Logs the fetch action but NEVER the cookie value.
+ * Fetch a user's LinkedIn cookie and user agent from Supabase.
  *
- * @param {string} userId - The UUID of the user (users.id).
- * @returns {Promise<{ cookie: string, userAgent: string|null }>} The user's cookie and user agent.
- * @throws {Error} If the user is not found or the query fails.
+ * @param {string} userId - The user's UUID from the users table
+ * @returns {Promise<{cookie: string, userAgent: string|null}>}
+ * @throws {Error} If user not found or cookie is not configured
  */
 async function getUserCookie(userId) {
   const { data: user, error } = await supabase
@@ -25,22 +22,26 @@ async function getUserCookie(userId) {
     .single();
 
   if (error || !user) {
-    throw new Error(`User not found or query failed for user_id: ${userId}`);
+    throw new Error(`User not found: ${userId}`);
   }
 
+  if (!user.linkedin_cookie || user.linkedin_cookie.trim() === '') {
+    throw new Error(`LinkedIn cookie not configured for user: ${userId}`);
+  }
+
+  // SECURITY: never log the cookie value
   logger.info(`Fetched cookie for user ${userId}`);
 
   return {
     cookie: user.linkedin_cookie,
-    userAgent: user.linkedin_user_agent
+    userAgent: user.linkedin_user_agent || null
   };
 }
 
 /**
- * Updates the cookie_updated_at timestamp for a user.
- * Fire-and-forget — errors are swallowed and logged as warnings.
+ * Update cookie_updated_at timestamp for a user (fire and forget).
  *
- * @param {string} userId - The UUID of the user (users.id).
+ * @param {string} userId - The user's UUID
  * @returns {void}
  */
 function updateCookieLastUsed(userId) {
@@ -49,9 +50,7 @@ function updateCookieLastUsed(userId) {
     .update({ cookie_updated_at: new Date().toISOString() })
     .eq('id', userId)
     .then(() => {})
-    .catch((err) => {
-      logger.warn('Failed to update cookie_updated_at', { user_id: userId, error: err.message });
-    });
+    .catch((err) => logger.warn('Failed to update cookie_updated_at', { userId, error: err.message }));
 }
 
 module.exports = { getUserCookie, updateCookieLastUsed };

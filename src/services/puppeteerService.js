@@ -1,50 +1,51 @@
 /**
  * @fileoverview Puppeteer browser service.
- * Manages Chromium browser lifecycle using puppeteer-core with the system-installed Chromium.
- * CHROMIUM_PATH must be set in environment (e.g. /snap/bin/chromium).
+ * Manages browser lifecycle for LinkedIn scraping.
+ * Uses pre-installed Chromium snap at CHROMIUM_PATH.
+ * ALWAYS use the launch config defined here — never change the args.
  */
 
 const puppeteer = require('puppeteer-core');
 const logger = require('../utils/logger');
 
 /**
- * Standard Chromium launch arguments for a headless, sandboxless environment.
- * Required for running on VM2 without a display.
+ * Puppeteer launch configuration.
+ * Required for GCP e2-micro with snap Chromium.
  */
-const LAUNCH_ARGS = [
-  '--no-sandbox',
-  '--disable-setuid-sandbox',
-  '--disable-dev-shm-usage',
-  '--disable-accelerated-2d-canvas',
-  '--no-first-run',
-  '--no-zygote',
-  '--disable-gpu'
-];
+const LAUNCH_CONFIG = {
+  executablePath: process.env.CHROMIUM_PATH,
+  headless: true,
+  args: [
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--disable-dev-shm-usage',
+    '--disable-accelerated-2d-canvas',
+    '--no-first-run',
+    '--no-zygote',
+    '--disable-gpu'
+  ]
+};
 
 /**
- * Launches a new Chromium browser instance using the path from CHROMIUM_PATH.
+ * Launch a new Chromium browser instance.
  *
- * @returns {Promise<import('puppeteer-core').Browser>} The launched browser instance.
- * @throws {Error} If CHROMIUM_PATH is not set or launch fails.
+ * @returns {Promise<import('puppeteer-core').Browser>} The browser instance
+ * @throws {Error} If browser fails to launch
  */
 async function launchBrowser() {
-  const browser = await puppeteer.launch({
-    executablePath: process.env.CHROMIUM_PATH,
-    headless: true,
-    args: LAUNCH_ARGS
-  });
+  logger.info('Launching browser', { executablePath: process.env.CHROMIUM_PATH });
+  const browser = await puppeteer.launch(LAUNCH_CONFIG);
   logger.info('Browser launched');
   return browser;
 }
 
 /**
- * Creates a new page in the browser, configures user agent, sets the LinkedIn
- * session cookie, and applies a navigation timeout.
+ * Create a new page with LinkedIn cookie and user agent set.
  *
- * @param {import('puppeteer-core').Browser} browser - The active browser instance.
- * @param {string} cookie - The li_at session cookie value.
- * @param {string|null} userAgent - The user agent string to use (or null for default).
- * @returns {Promise<import('puppeteer-core').Page>} The configured page.
+ * @param {import('puppeteer-core').Browser} browser - Active browser instance
+ * @param {string} cookie - LinkedIn li_at cookie value
+ * @param {string|null} userAgent - Browser user agent string
+ * @returns {Promise<import('puppeteer-core').Page>} Configured page
  */
 async function createPage(browser, cookie, userAgent) {
   const page = await browser.newPage();
@@ -56,18 +57,21 @@ async function createPage(browser, cookie, userAgent) {
   await page.setCookie({
     name: 'li_at',
     value: cookie,
-    domain: '.linkedin.com'
+    domain: '.linkedin.com',
+    path: '/',
+    httpOnly: true,
+    secure: true
   });
 
-  page.setDefaultNavigationTimeout(30000);
+  page.setDefaultTimeout(30000);
 
   return page;
 }
 
 /**
- * Safely closes the browser instance. Swallows errors and logs them as warnings.
+ * Safely close a browser instance.
  *
- * @param {import('puppeteer-core').Browser} browser - The browser instance to close.
+ * @param {import('puppeteer-core').Browser} browser - Browser to close
  * @returns {Promise<void>}
  */
 async function closeBrowser(browser) {
@@ -80,18 +84,16 @@ async function closeBrowser(browser) {
 }
 
 /**
- * PLACEHOLDER: Navigate to a LinkedIn profile URL and return the page content.
- * Full implementation coming in Step 7.
+ * Navigate to a LinkedIn profile URL.
+ * PLACEHOLDER — full implementation in Step 7.
  *
- * @param {import('puppeteer-core').Page} page - The configured Puppeteer page.
- * @param {string} url - The LinkedIn URL to navigate to.
- * @returns {Promise<object>} Placeholder response object.
+ * @param {import('puppeteer-core').Page} page - Active page
+ * @param {string} url - LinkedIn profile URL
+ * @returns {Promise<object>} Placeholder response
  */
 async function navigateToProfile(page, url) {
-  return {
-    placeholder: true,
-    message: 'Navigation not yet implemented'
-  };
+  logger.info('navigateToProfile called (placeholder)', { url });
+  return { placeholder: true, message: 'Navigation not yet implemented — coming in Step 7' };
 }
 
 module.exports = { launchBrowser, createPage, closeBrowser, navigateToProfile };

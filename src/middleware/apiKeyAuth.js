@@ -1,28 +1,21 @@
 /**
  * @fileoverview API key authentication middleware.
- * Validates the X-API-Key header against the Supabase api_keys table,
- * loads the associated user, and attaches both to the request object.
- *
- * SECURITY WARNING: Never log the API key value itself — only log user_id and service.
+ * Validates X-API-Key header against Supabase api_keys table.
+ * Attaches user and apiKey objects to the request for downstream handlers.
+ * SECURITY: Never log the API key value itself.
  */
 
 const supabase = require('../config/supabase');
 const logger = require('../utils/logger');
 
 /**
- * Express middleware that authenticates requests using the X-API-Key header.
+ * Middleware to authenticate requests using an API key.
+ * Validates the key exists, is active, belongs to the linkedin or all service,
+ * and that the associated user has a LinkedIn cookie configured.
  *
- * Validation steps:
- *  1. Reads X-API-Key header — returns 401 if missing.
- *  2. Queries api_keys table for a matching active key with service 'linkedin' or 'all'.
- *  3. Loads the associated user from the users table.
- *  4. Checks that linkedin_cookie is present on the user.
- *  5. Updates last_used_at on the api_key (fire-and-forget).
- *  6. Attaches req.user and req.apiKey, then calls next().
- *
- * @param {import('express').Request} req - Express request object.
- * @param {import('express').Response} res - Express response object.
- * @param {import('express').NextFunction} next - Express next function.
+ * @param {import('express').Request} req - Express request (expects X-API-Key header)
+ * @param {import('express').Response} res - Express response
+ * @param {import('express').NextFunction} next - Express next function
  * @returns {Promise<void>}
  */
 async function apiKeyAuth(req, res, next) {
@@ -30,10 +23,13 @@ async function apiKeyAuth(req, res, next) {
     const apiKeyValue = req.headers['x-api-key'];
 
     if (!apiKeyValue) {
-      return res.status(401).json({ success: false, error: 'API key required' });
+      return res.status(401).json({
+        success: false,
+        error: 'API key required. Provide it in the X-API-Key header.'
+      });
     }
 
-    // Look up the API key in Supabase
+    // Validate API key against Supabase
     const { data: apiKey, error: keyError } = await supabase
       .from('api_keys')
       .select('*')
@@ -43,10 +39,13 @@ async function apiKeyAuth(req, res, next) {
       .single();
 
     if (keyError || !apiKey) {
-      return res.status(401).json({ success: false, error: 'Invalid or inactive API key' });
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid or inactive API key.'
+      });
     }
 
-    // Load the associated user
+    // Fetch associated user
     const { data: user, error: userError } = await supabase
       .from('users')
       .select('id, full_name, linkedin_cookie, linkedin_user_agent')
@@ -54,10 +53,13 @@ async function apiKeyAuth(req, res, next) {
       .single();
 
     if (userError || !user) {
-      return res.status(401).json({ success: false, error: 'User not found' });
+      return res.status(401).json({
+        success: false,
+        error: 'User not found.'
+      });
     }
 
-    // Require a LinkedIn cookie to be configured
+    // Check cookie is configured
     if (!user.linkedin_cookie || user.linkedin_cookie.trim() === '') {
       return res.status(403).json({
         success: false,
@@ -65,33 +67,39 @@ async function apiKeyAuth(req, res, next) {
       });
     }
 
-    // Update last_used_at — fire and forget, do not await
+    // Update last_used_at (fire and forget)
     supabase
       .from('api_keys')
       .update({ last_used_at: new Date().toISOString() })
       .eq('id', apiKey.id)
       .then(() => {})
-      .catch(() => {});
+      .catch((err) => logger.warn('Failed to update last_used_at', { error: err.message }));
 
-    // Attach context to request — NEVER include the raw key value in logs
+    // Attach to request
     req.user = {
       id: user.id,
       full_name: user.full_name,
       linkedin_cookie: user.linkedin_cookie,
       linkedin_user_agent: user.linkedin_user_agent
     };
-
     req.apiKey = {
       id: apiKey.id,
-      api_key: apiKey.api_key,
       service: apiKey.service
     };
 
-    logger.info('API key authenticated', { user_id: user.id, service: apiKey.service });
+    // SECURITY: log user_id only, never the key value
+    logger.info('API key authenticated', {
+      user_id: user.id,
+      service: apiKey.service
+    });
 
     return next();
   } catch (err) {
-    return next(err);
+    logger.error('API key auth error', { error: err.message });
+    return res.status(500).json({
+      success: false,
+      error: 'Internal server error during authentication.'
+    });
   }
 }
 

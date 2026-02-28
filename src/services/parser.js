@@ -1,17 +1,17 @@
 /**
- * @fileoverview HTML parser for LinkedIn pages.
- * Extracts structured data from profile and search result HTML.
- * PLACEHOLDER — full implementation coming in Step 6.
+ * @fileoverview LinkedIn HTML parser service.
+ * Extracts structured data from LinkedIn page HTML.
+ * Full multi-selector implementation coming in Step 6.
  */
 
 const logger = require('../utils/logger');
 
 /**
- * PLACEHOLDER: Parses a LinkedIn profile page HTML and extracts structured data.
- * Full implementation coming in Step 6.
+ * Parse a LinkedIn profile page and extract structured data.
+ * PLACEHOLDER — full multi-selector implementation in Step 6.
  *
- * @param {string} html - Raw HTML content of a LinkedIn profile page.
- * @returns {object} Placeholder object with null fields.
+ * @param {string} html - Raw HTML from a LinkedIn profile page
+ * @returns {object} Parsed profile data (placeholder)
  */
 function parseProfile(html) {
   logger.info('parseProfile called (placeholder)');
@@ -24,23 +24,23 @@ function parseProfile(html) {
     experience: [],
     education: [],
     skills: [],
-    message: 'Parser not yet implemented - coming in Step 6'
+    message: 'Parser not yet implemented — coming in Step 6'
   };
 }
 
 /**
- * PLACEHOLDER: Parses a LinkedIn search results page HTML and extracts profile list.
- * Full implementation coming in Step 6.
+ * Parse LinkedIn search results page and extract profile list.
+ * PLACEHOLDER — full implementation in Step 6.
  *
- * @param {string} html - Raw HTML content of a LinkedIn search results page.
- * @returns {object} Placeholder object with empty profiles array.
+ * @param {string} html - Raw HTML from a LinkedIn search results page
+ * @returns {object} Parsed search results (placeholder)
  */
 function parseSearchResults(html) {
   logger.info('parseSearchResults called (placeholder)');
   return {
     placeholder: true,
     profiles: [],
-    message: 'Parser not yet implemented - coming in Step 6'
+    message: 'Search parser not yet implemented — coming in Step 6'
   };
 }
 

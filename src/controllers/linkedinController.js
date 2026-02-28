@@ -1,17 +1,16 @@
 /**
  * @fileoverview LinkedIn scraper controller.
- * Handles HTTP request/response for profile, search-export, and bulk endpoints.
- * Core scraping logic will be wired in Step 5.
+ * Handles incoming requests and delegates to linkedinService.
+ * Currently returns 501 placeholders — full implementation in Step 7.
  */
 
 const logger = require('../utils/logger');
 
 /**
- * Handle POST /api/linkedin/profile
- * Scrapes a single LinkedIn profile by URL.
+ * Scrape a single LinkedIn profile.
  *
- * @param {import('express').Request} req - Express request. Expects req.body.profile_url and req.user.
- * @param {import('express').Response} res - Express response.
+ * @param {import('express').Request} req - Express request
+ * @param {import('express').Response} res - Express response
  * @returns {void}
  */
 function scrapeProfile(req, res) {
@@ -23,34 +22,35 @@ function scrapeProfile(req, res) {
   return res.status(501).json({
     success: false,
     error: 'Not implemented yet',
-    message: 'Profile scraping coming in Step 5'
+    message: 'Profile scraping will be implemented in Step 7'
   });
 }
 
 /**
- * Handle POST /api/linkedin/search-export
- * Scrapes all profiles from a LinkedIn search results page.
+ * Scrape all profiles from a LinkedIn search results page.
  *
- * @param {import('express').Request} req - Express request. Expects req.body.search_url and req.user.
- * @param {import('express').Response} res - Express response.
+ * @param {import('express').Request} req - Express request
+ * @param {import('express').Response} res - Express response
  * @returns {void}
  */
 function scrapeSearchResults(req, res) {
-  logger.info('Search export requested', { user_id: req.user.id });
+  logger.info('Search export requested', {
+    user_id: req.user.id,
+    search_url: req.body.search_url
+  });
 
   return res.status(501).json({
     success: false,
     error: 'Not implemented yet',
-    message: 'Search export coming in Step 5'
+    message: 'Search export will be implemented in Step 8'
   });
 }
 
 /**
- * Handle POST /api/linkedin/bulk
- * Scrapes a list of LinkedIn profile URLs (max 50).
+ * Scrape a list of LinkedIn profile URLs in bulk (max 50).
  *
- * @param {import('express').Request} req - Express request. Expects req.body.profile_urls and req.user.
- * @param {import('express').Response} res - Express response.
+ * @param {import('express').Request} req - Express request
+ * @param {import('express').Response} res - Express response
  * @returns {void}
  */
 function scrapeBulk(req, res) {
@@ -62,7 +62,7 @@ function scrapeBulk(req, res) {
   return res.status(501).json({
     success: false,
     error: 'Not implemented yet',
-    message: 'Bulk scraping coming in Step 5'
+    message: 'Bulk scraping will be implemented in Step 9'
   });
 }
 
