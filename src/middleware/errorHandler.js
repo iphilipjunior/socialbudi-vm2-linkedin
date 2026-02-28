@@ -1,35 +1,36 @@
 /**
- * @fileoverview Global Express error handler middleware.
- * Differentiates between production and development environments.
- * Never exposes stack traces in production.
+ * @fileoverview Centralized Express error handler middleware.
+ * Returns sanitized error responses — never exposes stack traces in production.
  */
 
 const logger = require('../utils/logger');
 
 /**
  * Global error handler middleware for Express.
- * In production: returns a generic error message and logs full details internally.
+ * Must be registered last (after all routes).
+ *
+ * In production: logs full error internally, returns generic message.
  * In development: returns full error details including stack trace.
  *
- * @param {Error} err - The error object caught by Express.
- * @param {import('express').Request} req - The Express request object.
- * @param {import('express').Response} res - The Express response object.
- * @param {import('express').NextFunction} next - The Express next middleware function.
+ * Always returns JSON: { success: false, error: string }
+ *
+ * @param {Error} err - The error object passed to next(err).
+ * @param {import('express').Request} req - Express request object.
+ * @param {import('express').Response} res - Express response object.
+ * @param {import('express').NextFunction} next - Express next function.
  * @returns {void}
  */
 function errorHandler(err, req, res, next) {
   const statusCode = err.statusCode || err.status || 500;
-  const isProduction = process.env.NODE_ENV === 'production';
 
-  logger.error('Unhandled error', {
+  logger.error(err.message, {
     method: req.method,
     url: req.url,
     statusCode,
-    message: err.message,
     stack: err.stack
   });
 
-  if (isProduction) {
+  if (process.env.NODE_ENV === 'production') {
     return res.status(statusCode).json({
       success: false,
       error: statusCode >= 500 ? 'Internal server error' : err.message

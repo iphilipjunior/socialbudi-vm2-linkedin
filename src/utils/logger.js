@@ -1,58 +1,67 @@
 /**
- * @fileoverview Winston logger configuration for the LinkedIn scraper service.
+ * @fileoverview Winston logger configuration for the SocialBudi LinkedIn Scraper.
  *
- * SECURITY WARNING: Never log cookie values, API keys, JWT tokens, or any sensitive
- * authentication data. Log only sanitized, non-sensitive information.
+ * SECURITY WARNING: Never log cookie values (li_at), API keys, or JWT tokens.
+ * Log user IDs and action names only — never the sensitive values themselves.
  */
 
 const { createLogger, format, transports } = require('winston');
 const path = require('path');
 
-const { combine, timestamp, printf, colorize, errors } = format;
+const { combine, timestamp, json, errors, colorize, simple } = format;
+
+const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
+const LOG_DIR = path.join(__dirname, '../../logs');
 
 /**
- * Custom log format that includes timestamp, level, message, and optional metadata.
+ * Shared file format: JSON with ISO timestamp and error stack support.
  */
-const logFormat = printf(({ level, message, timestamp: ts, stack, ...metadata }) => {
-  let log = `${ts} [${level}]: ${message}`;
-  if (stack) {
-    log += `\n${stack}`;
-  }
-  if (Object.keys(metadata).length > 0) {
-    log += ` ${JSON.stringify(metadata)}`;
-  }
-  return log;
-});
+const fileFormat = combine(
+  errors({ stack: true }),
+  timestamp(),
+  json()
+);
 
 /**
- * Winston logger instance with console and file transports.
- * Supports log levels: error, warn, info, debug.
+ * Winston logger instance.
+ *
+ * Transports:
+ *  - logs/app.log   — all log levels (info, warn, error, debug)
+ *  - logs/error.log — error level only
+ *  - console        — development only (colorized simple format)
  *
  * @type {import('winston').Logger}
  */
 const logger = createLogger({
-  level: process.env.LOG_LEVEL || 'info',
-  format: combine(
-    errors({ stack: true }),
-    timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-    logFormat
-  ),
+  level: LOG_LEVEL,
+  format: fileFormat,
   transports: [
-    new transports.Console({
-      format: combine(
-        colorize({ all: true }),
-        errors({ stack: true }),
-        timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-        logFormat
-      )
+    new transports.File({
+      filename: path.join(LOG_DIR, 'app.log'),
+      level: LOG_LEVEL,
+      maxsize: 10 * 1024 * 1024,
+      maxFiles: 5,
+      tailable: true
     }),
     new transports.File({
-      filename: path.join(__dirname, '../../logs/app.log'),
-      maxsize: 10 * 1024 * 1024, // 10MB
+      filename: path.join(LOG_DIR, 'error.log'),
+      level: 'error',
+      maxsize: 10 * 1024 * 1024,
       maxFiles: 5,
       tailable: true
     })
   ]
 });
+
+if (process.env.NODE_ENV !== 'production') {
+  logger.add(
+    new transports.Console({
+      format: combine(
+        colorize({ all: true }),
+        simple()
+      )
+    })
+  );
+}
 
 module.exports = logger;
