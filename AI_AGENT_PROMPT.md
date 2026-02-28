@@ -9,9 +9,10 @@ Deploy path: /var/www/linkedin-scraper
 - Phase 6 Step 2: Foundation ✅ (Express server, health endpoint, logger, Supabase config)
 - Phase 6 Step 3: API Key Auth Middleware ✅ (validates api_keys table, attaches user to req)
 - Phase 6 Step 4: Supabase Cookie Service ✅ (getUserCookie, updateCookieLastUsed)
+- Phase 6 Step 5: Puppeteer Service ✅ (launchBrowser, createPage, closeBrowser)
 
 ## In Progress
-- Phase 6 Step 5: Puppeteer Service
+- Phase 6 Step 6: LinkedIn HTML Parser
 
 ## Critical Rules
 1. CHROMIUM_PATH comes from process.env.CHROMIUM_PATH (value: /snap/bin/chromium)
