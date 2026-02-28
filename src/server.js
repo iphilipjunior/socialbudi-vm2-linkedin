@@ -1,3 +1,4 @@
+require('dotenv').config();
 /**
  * @fileoverview Express server entry point for the SocialBudi LinkedIn Scraper service.
  * Configures middleware, routes, and starts the HTTP server.
