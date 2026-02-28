@@ -5,11 +5,13 @@ LinkedIn scraping service for SocialBudi platform.
 VM2: socialbudi-li.int.yt (35.193.16.129)
 Deploy path: /var/www/linkedin-scraper
 
-## Completed Phases
+## Completed Steps
 - Phase 6 Step 2: Foundation ✅ (Express server, health endpoint, logger, Supabase config)
+- Phase 6 Step 3: API Key Auth Middleware ✅ (validates api_keys table, attaches user to req)
+- Phase 6 Step 4: Supabase Cookie Service ✅ (getUserCookie, updateCookieLastUsed)
 
 ## In Progress
-- Phase 6 Step 3+: Core scraping services
+- Phase 6 Step 5: Puppeteer Service
 
 ## Critical Rules
 1. CHROMIUM_PATH comes from process.env.CHROMIUM_PATH (value: /snap/bin/chromium)
