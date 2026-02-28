@@ -1,24 +1,24 @@
 /**
- * @fileoverview Retry utility with exponential backoff and random delay helpers.
- * Used for resilient LinkedIn page navigation and scraping operations.
+ * @fileoverview Retry utility for LinkedIn scraping operations.
+ * Implements exponential backoff and random delay for anti-detection.
  */
 
 const logger = require('../utils/logger');
 
 /**
- * Retries an async function up to maxRetries times with exponential backoff.
- * Logs a warning on each failure. Throws the last error if all attempts fail.
+ * Retry an async function with exponential backoff.
  *
- * @param {() => Promise<any>} fn - The async function to retry.
- * @param {object} [options] - Retry configuration.
- * @param {number} [options.maxRetries=3] - Maximum number of retry attempts.
- * @param {number} [options.baseDelay=1000] - Base delay in milliseconds before first retry.
- * @param {number} [options.factor=2] - Exponential backoff multiplier.
- * @returns {Promise<any>} The result of the first successful call.
- * @throws {Error} The last error encountered after all retries are exhausted.
+ * @param {Function} fn - Async function to retry
+ * @param {object} [options] - Retry options
+ * @param {number} [options.maxRetries=3] - Maximum number of attempts
+ * @param {number} [options.baseDelay=1000] - Base delay in ms
+ * @param {number} [options.factor=2] - Exponential backoff factor
+ * @returns {Promise<*>} Result of the successful function call
+ * @throws {Error} The last error if all retries fail
  */
 async function retry(fn, options = {}) {
   const { maxRetries = 3, baseDelay = 1000, factor = 2 } = options;
+
   let lastError;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -29,10 +29,9 @@ async function retry(fn, options = {}) {
 
       if (attempt < maxRetries) {
         const delay = baseDelay * Math.pow(factor, attempt);
-        logger.warn(`Attempt ${attempt + 1} failed, retrying in ${delay}ms`, {
+        logger.warn(`Retry attempt ${attempt + 1}/${maxRetries}`, {
           error: err.message,
-          attempt: attempt + 1,
-          maxRetries
+          nextRetryMs: delay
         });
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
@@ -43,16 +42,17 @@ async function retry(fn, options = {}) {
 }
 
 /**
- * Returns a Promise that resolves after a random delay between min and max milliseconds.
- * Used to introduce human-like pauses between LinkedIn page requests.
+ * Wait for a random duration between min and max milliseconds.
+ * Used between LinkedIn requests to mimic human behaviour.
  *
- * @param {number} [min=2000] - Minimum delay in milliseconds.
- * @param {number} [max=5000] - Maximum delay in milliseconds.
+ * @param {number} [min=2000] - Minimum delay in ms
+ * @param {number} [max=5000] - Maximum delay in ms
  * @returns {Promise<void>}
  */
 function randomDelay(min = 2000, max = 5000) {
-  const delay = Math.floor(Math.random() * (max - min + 1)) + min;
-  return new Promise((resolve) => setTimeout(resolve, delay));
+  const ms = Math.floor(Math.random() * (max - min + 1)) + min;
+  logger.info(`Random delay: ${ms}ms`);
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 module.exports = { retry, randomDelay };

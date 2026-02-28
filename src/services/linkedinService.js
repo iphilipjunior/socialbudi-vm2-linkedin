@@ -1,60 +1,59 @@
 /**
  * @fileoverview LinkedIn scraping service.
- * Orchestrates browser automation to scrape LinkedIn profiles and search results.
- * PLACEHOLDER — full implementation coming in Step 7.
+ * Orchestrates browser automation to scrape LinkedIn data.
+ * Full implementation coming in Steps 7–9.
  */
 
-const puppeteerService = require('./puppeteerService');
 const logger = require('../utils/logger');
 
 /**
- * PLACEHOLDER: Scrapes a single LinkedIn profile.
- * Full implementation coming in Step 7.
+ * Scrape a single LinkedIn profile.
+ * PLACEHOLDER — full implementation in Step 7.
  *
- * @param {string} cookie - The user's li_at session cookie.
- * @param {string|null} userAgent - The user's stored browser user agent.
- * @param {string} profileUrl - The LinkedIn profile URL to scrape.
- * @returns {Promise<object>} Placeholder response object.
+ * @param {string} cookie - LinkedIn li_at cookie
+ * @param {string|null} userAgent - Browser user agent
+ * @param {string} profileUrl - LinkedIn profile URL
+ * @returns {Promise<object>} Placeholder response
  */
 async function scrapeProfile(cookie, userAgent, profileUrl) {
-  logger.info('Starting profile scrape (placeholder)', { profileUrl });
+  logger.info('scrapeProfile called (placeholder)', { profileUrl });
   return {
     placeholder: true,
-    message: 'LinkedIn scraping not yet implemented - coming in Step 7'
+    message: 'LinkedIn profile scraping not yet implemented — coming in Step 7'
   };
 }
 
 /**
- * PLACEHOLDER: Scrapes all profiles from a LinkedIn search results page.
- * Full implementation coming in Step 7.
+ * Scrape all profiles from a LinkedIn search results page.
+ * PLACEHOLDER — full implementation in Step 8.
  *
- * @param {string} cookie - The user's li_at session cookie.
- * @param {string|null} userAgent - The user's stored browser user agent.
- * @param {string} searchUrl - The LinkedIn search results URL to scrape.
- * @returns {Promise<object>} Placeholder response object.
+ * @param {string} cookie - LinkedIn li_at cookie
+ * @param {string|null} userAgent - Browser user agent
+ * @param {string} searchUrl - LinkedIn search results URL
+ * @returns {Promise<object>} Placeholder response
  */
 async function scrapeSearchResults(cookie, userAgent, searchUrl) {
-  logger.info('Starting search scrape (placeholder)', { searchUrl });
+  logger.info('scrapeSearchResults called (placeholder)', { searchUrl });
   return {
     placeholder: true,
-    message: 'LinkedIn scraping not yet implemented - coming in Step 7'
+    message: 'LinkedIn search export not yet implemented — coming in Step 8'
   };
 }
 
 /**
- * PLACEHOLDER: Scrapes a list of LinkedIn profile URLs.
- * Full implementation coming in Step 7.
+ * Scrape a list of LinkedIn profile URLs in bulk.
+ * PLACEHOLDER — full implementation in Step 9.
  *
- * @param {string} cookie - The user's li_at session cookie.
- * @param {string|null} userAgent - The user's stored browser user agent.
- * @param {string[]} profileUrls - Array of LinkedIn profile URLs to scrape.
- * @returns {Promise<object>} Placeholder response object.
+ * @param {string} cookie - LinkedIn li_at cookie
+ * @param {string|null} userAgent - Browser user agent
+ * @param {string[]} profileUrls - Array of LinkedIn profile URLs
+ * @returns {Promise<object>} Placeholder response
  */
 async function scrapeBulk(cookie, userAgent, profileUrls) {
-  logger.info('Starting bulk scrape (placeholder)', { count: profileUrls.length });
+  logger.info('scrapeBulk called (placeholder)', { count: profileUrls.length });
   return {
     placeholder: true,
-    message: 'LinkedIn scraping not yet implemented - coming in Step 7'
+    message: 'LinkedIn bulk scraping not yet implemented — coming in Step 9'
   };
 }
 

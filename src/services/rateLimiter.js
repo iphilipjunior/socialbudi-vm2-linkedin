@@ -1,23 +1,20 @@
 /**
- * @fileoverview In-memory rate limiter for LinkedIn scraping requests.
+ * @fileoverview In-memory rate limiter for LinkedIn scraping.
  * Enforces a daily limit of 100 profiles per user, resetting at midnight UTC.
+ * Uses a Map for storage — resets on server restart (acceptable for daily limits).
  */
 
 const logger = require('../utils/logger');
 
-/** Maximum number of profile scrapes allowed per user per day. */
 const DAILY_LIMIT = 100;
 
-/**
- * In-memory store mapping user_id → { count, resetAt }.
- * @type {Map<string, { count: number, resetAt: number }>}
- */
+/** @type {Map<string, {count: number, resetAt: number}>} */
 const userLimits = new Map();
 
 /**
- * Computes the Unix timestamp (ms) for the next midnight UTC.
+ * Calculate the next midnight UTC as a Unix timestamp (ms).
  *
- * @returns {Date} Next midnight UTC as a Date object.
+ * @returns {number} Timestamp of next midnight UTC
  */
 function getResetTime() {
   const now = new Date();
@@ -27,23 +24,23 @@ function getResetTime() {
     now.getUTCDate() + 1,
     0, 0, 0, 0
   ));
-  return midnight;
+  return midnight.getTime();
 }
 
 /**
- * Checks whether a user is within their daily rate limit and increments the counter.
- * Creates a new entry if none exists or if the existing entry has expired.
+ * Check and increment the rate limit for a user.
+ * Returns whether the request is allowed and current usage stats.
  *
- * @param {string} userId - The user's UUID (users.id).
- * @returns {{ allowed: boolean, used: number, limit: number, resetAt: Date }}
+ * @param {string} userId - The user's UUID
+ * @returns {{allowed: boolean, used: number, limit: number, resetAt: number}}
  */
 function checkRateLimit(userId) {
   const now = Date.now();
   let entry = userLimits.get(userId);
 
-  if (!entry || entry.resetAt < now) {
-    const resetAt = getResetTime();
-    entry = { count: 0, resetAt: resetAt.getTime() };
+  // Create or reset entry if expired
+  if (!entry || entry.resetAt <= now) {
+    entry = { count: 0, resetAt: getResetTime() };
   }
 
   if (entry.count >= DAILY_LIMIT) {
@@ -51,39 +48,42 @@ function checkRateLimit(userId) {
       allowed: false,
       used: entry.count,
       limit: DAILY_LIMIT,
-      resetAt: new Date(entry.resetAt)
+      resetAt: entry.resetAt
     };
   }
 
   entry.count += 1;
   userLimits.set(userId, entry);
 
+  logger.info('Rate limit checked', { userId, used: entry.count, limit: DAILY_LIMIT });
+
   return {
     allowed: true,
     used: entry.count,
     limit: DAILY_LIMIT,
-    resetAt: new Date(entry.resetAt)
+    resetAt: entry.resetAt
   };
 }
 
 /**
- * Returns the current rate limit status for a user without incrementing the counter.
+ * Get the current rate limit status for a user without incrementing.
  *
- * @param {string} userId - The user's UUID (users.id).
- * @returns {{ used: number, limit: number, resetAt: Date }}
+ * @param {string} userId - The user's UUID
+ * @returns {{used: number, limit: number, resetAt: number, remaining: number}}
  */
 function getRateLimitStatus(userId) {
   const now = Date.now();
   const entry = userLimits.get(userId);
 
-  if (!entry || entry.resetAt < now) {
-    return { used: 0, limit: DAILY_LIMIT, resetAt: getResetTime() };
+  if (!entry || entry.resetAt <= now) {
+    return { used: 0, limit: DAILY_LIMIT, remaining: DAILY_LIMIT, resetAt: getResetTime() };
   }
 
   return {
     used: entry.count,
     limit: DAILY_LIMIT,
-    resetAt: new Date(entry.resetAt)
+    remaining: Math.max(0, DAILY_LIMIT - entry.count),
+    resetAt: entry.resetAt
   };
 }
 
