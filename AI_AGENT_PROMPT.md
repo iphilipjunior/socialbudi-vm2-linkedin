@@ -11,9 +11,10 @@ Deploy path: /var/www/linkedin-scraper
 - Phase 6 Step 4: Supabase Cookie Service ✅ (getUserCookie, updateCookieLastUsed)
 - Phase 6 Step 5: Puppeteer Service ✅ (launchBrowser, createPage, closeBrowser)
 - Phase 6 Step 6: LinkedIn HTML Parser ✅ (parseProfile, parseSearchResults — multi-selector fallbacks)
+- Phase 6 Step 7: Single Profile Scraper ✅ (scrapeProfile — full chain: rateLimiter → cookie → browser → parser)
 
 ## In Progress
-- Phase 6 Step 7: Single Profile Scraper
+- Phase 6 Step 8: Search Export Scraper
 
 ## Critical Rules
 1. CHROMIUM_PATH comes from process.env.CHROMIUM_PATH (value: /snap/bin/chromium)
