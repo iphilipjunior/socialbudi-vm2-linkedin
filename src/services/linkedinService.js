@@ -98,18 +98,83 @@ async function scrapeProfile(userId, profileUrl) {
 
 /**
  * Scrape all profiles from a LinkedIn search results page.
- * PLACEHOLDER — full implementation in Step 8.
  *
- * @param {string} userId - User UUID
- * @param {string} searchUrl - LinkedIn search results URL
- * @returns {Promise<object>} Placeholder response
+ * Flow:
+ * 1. Check rate limit
+ * 2. Fetch cookie from Supabase
+ * 3. Apply random delay (anti-detection)
+ * 4. Launch browser, create page
+ * 5. Navigate to search URL
+ * 6. Parse search results
+ * 7. Update cookie last used (fire-and-forget)
+ * 8. Close browser (always — in finally block)
+ * 9. Return results
+ *
+ * @param {string} userId - User UUID from users.id
+ * @param {string} searchUrl - Full LinkedIn search results URL
+ * @returns {Promise<{success: boolean, data: Array, count: number, scraped_at: string}>}
+ * @throws {Error} On rate limit exceeded, navigation failure, or cookie missing
  */
 async function scrapeSearchResults(userId, searchUrl) {
-  logger.info('scrapeSearchResults called (placeholder)', { userId, searchUrl });
-  return {
-    placeholder: true,
-    message: 'LinkedIn search export not yet implemented — coming in Step 8'
-  };
+  logger.info('scrapeSearchResults started', { userId, searchUrl });
+
+  // Step 1: Check rate limit (also increments the counter)
+  const limitCheck = rateLimiter.checkRateLimit(userId);
+  if (!limitCheck.allowed) {
+    logger.warn('Rate limit exceeded for user', {
+      userId,
+      used: limitCheck.used,
+      reset_at: limitCheck.resetAt
+    });
+    const err = new Error('Daily rate limit exceeded');
+    err.statusCode = 429;
+    err.limitData = limitCheck;
+    throw err;
+  }
+
+  // Step 2: Fetch cookie
+  const { cookie, userAgent } = await cookieManager.getUserCookie(userId);
+
+  // Step 3: Random delay (anti-detection)
+  await retry.randomDelay();
+
+  let browser = null;
+
+  try {
+    // Step 4: Launch browser and create page
+    browser = await puppeteerService.launchBrowser();
+    const page = await puppeteerService.createPage(browser, cookie, userAgent);
+
+    // Step 5: Navigate to search URL
+    logger.info('Navigating to LinkedIn search URL', { searchUrl });
+    await page.goto(searchUrl, {
+      waitUntil: 'domcontentloaded',
+      timeout: 60000
+    });
+
+    // Step 6: Parse search results
+    const results = await parser.parseSearchResults(page);
+
+    // Step 7: Update cookie last used (fire-and-forget)
+    cookieManager.updateCookieLastUsed(userId);
+
+    logger.info('scrapeSearchResults completed successfully', {
+      userId,
+      searchUrl,
+      count: results.length
+    });
+
+    return {
+      success: true,
+      data: results,
+      count: results.length,
+      scraped_at: new Date().toISOString()
+    };
+
+  } finally {
+    // Step 8: Always close browser
+    await puppeteerService.closeBrowser(browser);
+  }
 }
 
 /**
