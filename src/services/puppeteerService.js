@@ -67,7 +67,7 @@ async function launchBrowser() {
  * @returns {Promise<import('puppeteer-core').Page>} Configured page instance
  * @throws {Error} If page creation or cookie injection fails
  */
-async function createPage(browser, cookie, userAgent, skipCookieInjection = false) {
+async function createPage(browser, cookie, userAgent) {
   const page = await browser.newPage();
 
   // Set viewport
@@ -81,8 +81,8 @@ async function createPage(browser, cookie, userAgent, skipCookieInjection = fals
   page.setDefaultNavigationTimeout(60000);
   page.setDefaultTimeout(60000);
 
-  // Inject LinkedIn li_at cookie (skipped when Bright Data manages auth internally)
-  if (!skipCookieInjection) {
+  // Inject LinkedIn li_at cookie
+  try {
     await page.setCookie({
       name: 'li_at',
       value: cookie,
@@ -91,6 +91,13 @@ async function createPage(browser, cookie, userAgent, skipCookieInjection = fals
       httpOnly: true,
       secure: true
     });
+    logger.info('LinkedIn cookie injected successfully');
+  } catch (err) {
+    if (err.message?.includes('forbidden')) {
+      logger.warn('Cookie injection blocked by browser provider - proceeding without cookie injection', { error: err.message });
+    } else {
+      throw err;
+    }
   }
 
   // Block images, fonts, and media to save bandwidth on e2-micro
