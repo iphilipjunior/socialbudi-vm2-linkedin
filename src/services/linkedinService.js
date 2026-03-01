@@ -148,7 +148,7 @@ async function scrapeSearchResults(userId, searchUrl) {
       : await puppeteerService.launchBrowser();
     logger.info('Browser launched', { provider: useBrightData ? 'brightdata' : 'local' });
     logger.info('Creating page via Bright Data');
-    const page = await puppeteerService.createPage(browser, cookie, userAgent, useBrightData);
+    const page = await puppeteerService.createPage(browser, cookie, userAgent);
     logger.info('Page created successfully');
 
     // Step 5: Navigate to search URL
