@@ -147,7 +147,9 @@ async function scrapeSearchResults(userId, searchUrl) {
       ? await puppeteerService.launchBrowserBrightData()
       : await puppeteerService.launchBrowser();
     logger.info('Browser launched', { provider: useBrightData ? 'brightdata' : 'local' });
+    logger.info('Creating page via Bright Data');
     const page = await puppeteerService.createPage(browser, cookie, userAgent);
+    logger.info('Page created successfully');
 
     // Step 5: Navigate to search URL
     logger.info('Navigating to LinkedIn search URL', { searchUrl });
@@ -155,6 +157,7 @@ async function scrapeSearchResults(userId, searchUrl) {
       waitUntil: 'domcontentloaded',
       timeout: 60000
     });
+    logger.info('Navigation completed');
 
     // Step 6: Parse search results
     const results = await parser.parseSearchResults(page);
@@ -175,6 +178,9 @@ async function scrapeSearchResults(userId, searchUrl) {
       scraped_at: new Date().toISOString()
     };
 
+  } catch (err) {
+    logger.error('scrapeSearchResults threw', { error: err.message, stack: err.stack });
+    throw err;
   } finally {
     // Step 8: Always close browser
     await puppeteerService.closeBrowser(browser);
