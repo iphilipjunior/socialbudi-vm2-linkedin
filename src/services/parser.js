@@ -14,30 +14,32 @@ const logger = require('../utils/logger');
 
 const SELECTORS = {
   name: [
+    'h1.top-card-layout__title',
     'h1.text-heading-xlarge',
-    'h1.inline.t-24',
-    '.pv-top-card--list li:first-child'
+    'h1.inline',
+    '.pv-text-details__left-panel h1'
   ],
   headline: [
-    '.text-body-medium.break-words',
-    '.pv-top-card--list li:nth-child(2)',
-    '[data-generated-suggestion-target] .text-body-medium'
+    '.top-card-layout__headline',
+    '.top-card__subline-text',
+    '.pv-text-details__left-panel .text-body-medium',
+    'h2.top-card-layout__headline'
   ],
   location: [
-    '.text-body-small.inline.t-black--light.break-words',
-    '.pv-top-card--list-bullet li:first-child',
-    '.pb2.pv-top-card-v2-section__info span'
+    '.top-card__subline-item',
+    '.profile-info-subline .not-first-middot span',
+    '.pv-text-details__left-panel span.text-body-small'
   ],
   about: [
-    '.display-flex.ph5.pv3 div.inline-show-more-text span[aria-hidden="true"]',
-    '#about ~ .pvs-list__outer-container .visually-hidden',
-    '.pv-about-section .pv-about__summary-text'
+    '.core-section-container__content .with-line-breaks',
+    '.summary__text',
+    '#about ~ .display-flex .full-width'
   ],
   experience: {
     container: [
-      '#experience ~ .pvs-list__outer-container .pvs-list__item--line-separated',
-      '#experience ~ .pvs-list__outer-container li.artdeco-list__item',
-      '.pv-profile-section.experience-section li.pv-entity__position-group-pager'
+      '#experience ~ .experience__list li',
+      '.experience-section ul > li',
+      '#experience-section .experience-item'
     ],
     title: [
       '.t-bold span[aria-hidden="true"]',
@@ -57,9 +59,8 @@ const SELECTORS = {
   },
   education: {
     container: [
-      '#education ~ .pvs-list__outer-container .pvs-list__item--line-separated',
-      '#education ~ .pvs-list__outer-container li.artdeco-list__item',
-      '.pv-profile-section.education-section li.pv-education-entity'
+      '#education ~ .education__list li',
+      '.education-section ul > li'
     ],
     school: [
       '.t-bold span[aria-hidden="true"]',
@@ -78,9 +79,8 @@ const SELECTORS = {
     ]
   },
   skills: [
-    '#skills ~ .pvs-list__outer-container .t-bold span[aria-hidden="true"]',
-    '.pv-skill-category-entity__name-text',
-    '.pv-skills-section .pv-skill-entity .pv-skill-entity__skill-name'
+    '#skills ~ .skills__list .skills-section__skill',
+    '.pv-skill-category-entity__name'
   ],
   searchResults: {
     container: [
