@@ -67,7 +67,7 @@ async function launchBrowser() {
  * @returns {Promise<import('puppeteer-core').Page>} Configured page instance
  * @throws {Error} If page creation or cookie injection fails
  */
-async function createPage(browser, cookie, userAgent) {
+async function createPage(browser, cookie, userAgent, skipCookieInjection = false) {
   const page = await browser.newPage();
 
   // Set viewport
@@ -81,15 +81,17 @@ async function createPage(browser, cookie, userAgent) {
   page.setDefaultNavigationTimeout(60000);
   page.setDefaultTimeout(60000);
 
-  // Inject LinkedIn li_at cookie
-  await page.setCookie({
-    name: 'li_at',
-    value: cookie,
-    domain: LINKEDIN_DOMAIN,
-    path: '/',
-    httpOnly: true,
-    secure: true
-  });
+  // Inject LinkedIn li_at cookie (skipped when Bright Data manages auth internally)
+  if (!skipCookieInjection) {
+    await page.setCookie({
+      name: 'li_at',
+      value: cookie,
+      domain: LINKEDIN_DOMAIN,
+      path: '/',
+      httpOnly: true,
+      secure: true
+    });
+  }
 
   // Block images, fonts, and media to save bandwidth on e2-micro
   await page.setRequestInterception(true);
