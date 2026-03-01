@@ -48,7 +48,8 @@ async function launchBrowser() {
       '--disable-background-networking',
       '--disable-default-apps',
       '--mute-audio',
-      '--no-default-browser-check'
+      '--no-default-browser-check',
+      '--single-process'
     ]
   });
 
