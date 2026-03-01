@@ -125,4 +125,25 @@ async function closeBrowser(browser) {
   }
 }
 
-module.exports = { launchBrowser, createPage, closeBrowser };
+/**
+ * Connect to Bright Data's Browser API.
+ * Uses puppeteer.connect() instead of puppeteer.launch() — no local Chromium needed.
+ * Requires BRIGHTDATA_WS_ENDPOINT environment variable.
+ *
+ * @returns {Promise<import('puppeteer-core').Browser>} Connected browser instance
+ * @throws {Error} If BRIGHTDATA_WS_ENDPOINT is not set or connection fails
+ */
+async function launchBrowserBrightData() {
+  const wsEndpoint = process.env.BRIGHTDATA_WS_ENDPOINT;
+
+  if (!wsEndpoint) {
+    throw new Error('BRIGHTDATA_WS_ENDPOINT environment variable is not set');
+  }
+
+  logger.info('Connecting to Bright Data Browser API');
+  const browser = await puppeteer.connect({ browserWSEndpoint: wsEndpoint });
+  logger.info('Connected to Bright Data Browser API');
+  return browser;
+}
+
+module.exports = { launchBrowser, launchBrowserBrightData, createPage, closeBrowser };
