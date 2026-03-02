@@ -1,7 +1,8 @@
 /**
  * @fileoverview Puppeteer browser management service.
  * Handles Chromium browser lifecycle for LinkedIn scraping.
- * Uses puppeteer-core with system Chromium (snap install).
+ * Uses puppeteer-core with system Chromium (snap install) routed through
+ * Bright Data residential proxy for anti-detection on search export.
  * Configured for GCP e2-micro VM constraints.
  */
 
@@ -17,20 +18,28 @@ const DEFAULT_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKi
 const LINKEDIN_DOMAIN = 'linkedin.com';
 
 /**
- * Launch a Chromium browser instance.
+ * Launch a Chromium browser instance routed through the Bright Data residential proxy.
  * Uses GCP VM safe flags — no sandbox, no GPU, no shared memory.
+ * Proxy authentication is handled per-page via page.authenticate().
  *
  * @returns {Promise<import('puppeteer-core').Browser>} Browser instance
- * @throws {Error} If browser fails to launch
+ * @throws {Error} If CHROMIUM_PATH, BRIGHTDATA_PROXY_HOST, or BRIGHTDATA_PROXY_PORT are not set
  */
 async function launchBrowser() {
   const executablePath = process.env.CHROMIUM_PATH;
+  const proxyHost = process.env.BRIGHTDATA_PROXY_HOST;
+  const proxyPort = process.env.BRIGHTDATA_PROXY_PORT;
 
   if (!executablePath) {
     throw new Error('CHROMIUM_PATH environment variable is not set');
   }
+  if (!proxyHost || !proxyPort) {
+    throw new Error('BRIGHTDATA_PROXY_HOST and BRIGHTDATA_PROXY_PORT environment variables are required');
+  }
 
-  logger.info('Launching Chromium browser', { executablePath });
+  const proxyServer = `http://${proxyHost}:${proxyPort}`;
+
+  logger.info('Launching Chromium with residential proxy', { executablePath, proxyHost, proxyPort });
 
   const browser = await puppeteer.launch({
     executablePath,
@@ -47,26 +56,32 @@ async function launchBrowser() {
       '--disable-background-networking',
       '--disable-default-apps',
       '--mute-audio',
-      '--no-default-browser-check'
+      '--no-default-browser-check',
+      `--proxy-server=${proxyServer}`
     ]
   });
 
-  logger.info('Chromium browser launched successfully');
+  logger.info('Browser launched with residential proxy');
   return browser;
 }
 
 /**
- * Create a new browser page with LinkedIn cookie and user agent injected.
- * Blocks images, fonts, and media to reduce bandwidth on e2-micro VM.
+ * Create a new browser page with proxy authentication, LinkedIn cookie, and user agent injected.
+ * Blocks images, fonts, media, and stylesheets to reduce bandwidth on e2-micro VM.
  *
  * @param {import('puppeteer-core').Browser} browser - Active browser instance
  * @param {string} cookie - LinkedIn li_at cookie value
  * @param {string|null} userAgent - Browser user agent string (uses default if null)
  * @returns {Promise<import('puppeteer-core').Page>} Configured page instance
- * @throws {Error} If page creation or cookie injection fails
+ * @throws {Error} If page creation, proxy auth, or cookie injection fails
  */
 async function createPage(browser, cookie, userAgent) {
   const page = await browser.newPage();
+
+  // Authenticate with Bright Data residential proxy
+  const proxyUsername = process.env.BRIGHTDATA_PROXY_USERNAME;
+  const proxyPassword = process.env.BRIGHTDATA_PROXY_PASSWORD;
+  await page.authenticate({ username: proxyUsername, password: proxyPassword });
 
   // Set viewport
   await page.setViewport({ width: 1280, height: 800 });
@@ -80,25 +95,17 @@ async function createPage(browser, cookie, userAgent) {
   page.setDefaultTimeout(30000);
 
   // Inject LinkedIn li_at cookie
-  try {
-    await page.setCookie({
-      name: 'li_at',
-      value: cookie,
-      domain: LINKEDIN_DOMAIN,
-      path: '/',
-      httpOnly: true,
-      secure: true
-    });
-    logger.info('LinkedIn cookie injected successfully');
-  } catch (err) {
-    if (err.message?.includes('forbidden')) {
-      logger.warn('Cookie injection blocked by browser provider - proceeding without cookie injection', { error: err.message });
-    } else {
-      throw err;
-    }
-  }
+  await page.setCookie({
+    name: 'li_at',
+    value: cookie,
+    domain: LINKEDIN_DOMAIN,
+    path: '/',
+    httpOnly: true,
+    secure: true
+  });
+  logger.info('LinkedIn cookie injected successfully');
 
-  // Block images, fonts, and media to save bandwidth on e2-micro
+  // Block images, fonts, media, and stylesheets to save bandwidth on e2-micro
   await page.setRequestInterception(true);
   page.on('request', (req) => {
     const resourceType = req.resourceType();
@@ -132,25 +139,4 @@ async function closeBrowser(browser) {
   }
 }
 
-/**
- * Connect to Bright Data's Browser API.
- * Uses puppeteer.connect() instead of puppeteer.launch() — no local Chromium needed.
- * Requires BRIGHTDATA_WS_ENDPOINT environment variable.
- *
- * @returns {Promise<import('puppeteer-core').Browser>} Connected browser instance
- * @throws {Error} If BRIGHTDATA_WS_ENDPOINT is not set or connection fails
- */
-async function launchBrowserBrightData() {
-  const wsEndpoint = process.env.BRIGHTDATA_WS_ENDPOINT;
-
-  if (!wsEndpoint) {
-    throw new Error('BRIGHTDATA_WS_ENDPOINT environment variable is not set');
-  }
-
-  logger.info('Connecting to Bright Data Browser API');
-  const browser = await puppeteer.connect({ browserWSEndpoint: wsEndpoint });
-  logger.info('Connected to Bright Data Browser API');
-  return browser;
-}
-
-module.exports = { launchBrowser, launchBrowserBrightData, createPage, closeBrowser };
+module.exports = { launchBrowser, createPage, closeBrowser };
