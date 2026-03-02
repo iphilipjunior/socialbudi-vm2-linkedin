@@ -34,7 +34,7 @@ async function launchBrowser() {
   if (!proxyUsername) throw new Error('BRIGHTDATA_PROXY_USERNAME environment variable is not set');
   if (!proxyPassword) throw new Error('BRIGHTDATA_PROXY_PASSWORD environment variable is not set');
 
-  const proxyUrl = `http://${proxyUsername}:${proxyPassword}@${proxyHost}:${proxyPort}`;
+  const proxyUrl = `https://${proxyHost}:${proxyPort}`;
   logger.info('Launching Chromium browser with residential proxy', { proxyHost, proxyPort });
 
   const browser = await puppeteer.launch({
