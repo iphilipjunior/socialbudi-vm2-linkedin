@@ -25,11 +25,16 @@ async function launchBrowser() {
   const proxyHost = process.env.BRIGHTDATA_PROXY_HOST;
   const proxyPort = process.env.BRIGHTDATA_PROXY_PORT;
 
+  const proxyUsername = process.env.BRIGHTDATA_PROXY_USERNAME;
+  const proxyPassword = process.env.BRIGHTDATA_PROXY_PASSWORD;
+
   if (!executablePath) throw new Error('CHROMIUM_PATH environment variable is not set');
   if (!proxyHost) throw new Error('BRIGHTDATA_PROXY_HOST environment variable is not set');
   if (!proxyPort) throw new Error('BRIGHTDATA_PROXY_PORT environment variable is not set');
+  if (!proxyUsername) throw new Error('BRIGHTDATA_PROXY_USERNAME environment variable is not set');
+  if (!proxyPassword) throw new Error('BRIGHTDATA_PROXY_PASSWORD environment variable is not set');
 
-  const proxyUrl = `http://${proxyHost}:${proxyPort}`;
+  const proxyUrl = `http://${proxyUsername}:${proxyPassword}@${proxyHost}:${proxyPort}`;
   logger.info('Launching Chromium browser with residential proxy', { proxyHost, proxyPort });
 
   const browser = await puppeteer.launch({
