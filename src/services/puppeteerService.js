@@ -1,9 +1,8 @@
 /**
  * @fileoverview Puppeteer browser management service.
  * Handles Chromium browser lifecycle for LinkedIn scraping.
- * Uses puppeteer-core with system Chromium (snap install) routed through
- * Bright Data residential proxy for anti-detection on search export.
- * Configured for GCP e2-micro VM constraints.
+ * Uses puppeteer-core with system Chromium (snap install).
+ * Configured for GCP e2-micro VM with Bright Data residential proxy.
  */
 
 'use strict';
@@ -11,41 +10,34 @@
 const puppeteer = require('puppeteer-core');
 const logger = require('../utils/logger');
 
-// Default user agent if user has not set one
 const DEFAULT_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-
-// LinkedIn cookie domain
 const LINKEDIN_DOMAIN = 'linkedin.com';
 
 /**
- * Launch a Chromium browser instance routed through the Bright Data residential proxy.
- * Uses GCP VM safe flags — no sandbox, no GPU, no shared memory.
- * Proxy authentication is handled per-page via page.authenticate().
+ * Launch a local Chromium browser instance with Bright Data residential proxy.
+ * Proxy routes all traffic through residential IPs for LinkedIn anti-detection.
  *
  * @returns {Promise<import('puppeteer-core').Browser>} Browser instance
- * @throws {Error} If CHROMIUM_PATH, BRIGHTDATA_PROXY_HOST, or BRIGHTDATA_PROXY_PORT are not set
+ * @throws {Error} If CHROMIUM_PATH or proxy env vars are not set, or browser fails to launch
  */
 async function launchBrowser() {
   const executablePath = process.env.CHROMIUM_PATH;
   const proxyHost = process.env.BRIGHTDATA_PROXY_HOST;
   const proxyPort = process.env.BRIGHTDATA_PROXY_PORT;
 
-  if (!executablePath) {
-    throw new Error('CHROMIUM_PATH environment variable is not set');
-  }
-  if (!proxyHost || !proxyPort) {
-    throw new Error('BRIGHTDATA_PROXY_HOST and BRIGHTDATA_PROXY_PORT environment variables are required');
-  }
+  if (!executablePath) throw new Error('CHROMIUM_PATH environment variable is not set');
+  if (!proxyHost) throw new Error('BRIGHTDATA_PROXY_HOST environment variable is not set');
+  if (!proxyPort) throw new Error('BRIGHTDATA_PROXY_PORT environment variable is not set');
 
-  const proxyServer = `http://${proxyHost}:${proxyPort}`;
-
-  logger.info('Launching Chromium with residential proxy', { executablePath, proxyHost, proxyPort });
+  const proxyUrl = `http://${proxyHost}:${proxyPort}`;
+  logger.info('Launching Chromium browser with residential proxy', { proxyHost, proxyPort });
 
   const browser = await puppeteer.launch({
     executablePath,
     headless: true,
     protocolTimeout: 60000,
     args: [
+      `--proxy-server=${proxyUrl}`,
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
@@ -58,7 +50,7 @@ async function launchBrowser() {
       '--disable-default-apps',
       '--mute-audio',
       '--no-default-browser-check',
-      `--proxy-server=${proxyServer}`
+      '--single-process'
     ]
   });
 
@@ -68,6 +60,8 @@ async function launchBrowser() {
 
 /**
  * Create a new browser page with proxy authentication, LinkedIn cookie, and user agent injected.
+ * Authenticates with Bright Data residential proxy credentials.
+ * Injects li_at session cookie for LinkedIn authentication.
  * Blocks images, fonts, media, and stylesheets to reduce bandwidth on e2-micro VM.
  *
  * @param {import('puppeteer-core').Browser} browser - Active browser instance
@@ -77,12 +71,17 @@ async function launchBrowser() {
  * @throws {Error} If page creation, proxy auth, or cookie injection fails
  */
 async function createPage(browser, cookie, userAgent) {
-  const page = await browser.newPage();
-
-  // Authenticate with Bright Data residential proxy
   const proxyUsername = process.env.BRIGHTDATA_PROXY_USERNAME;
   const proxyPassword = process.env.BRIGHTDATA_PROXY_PASSWORD;
+
+  if (!proxyUsername) throw new Error('BRIGHTDATA_PROXY_USERNAME environment variable is not set');
+  if (!proxyPassword) throw new Error('BRIGHTDATA_PROXY_PASSWORD environment variable is not set');
+
+  const page = await browser.newPage();
+
+  // Authenticate with residential proxy
   await page.authenticate({ username: proxyUsername, password: proxyPassword });
+  logger.info('Proxy authentication set');
 
   // Set viewport
   await page.setViewport({ width: 1280, height: 800 });
@@ -91,11 +90,11 @@ async function createPage(browser, cookie, userAgent) {
   const ua = userAgent || DEFAULT_USER_AGENT;
   await page.setUserAgent(ua);
 
-  // Set default navigation timeout (30 seconds)
+  // Set navigation timeouts
   page.setDefaultNavigationTimeout(60000);
   page.setDefaultTimeout(60000);
 
-  // Inject LinkedIn li_at cookie
+  // Inject LinkedIn li_at session cookie
   await page.setCookie({
     name: 'li_at',
     value: cookie,
@@ -106,24 +105,23 @@ async function createPage(browser, cookie, userAgent) {
   });
   logger.info('LinkedIn cookie injected successfully');
 
-  // Block images, fonts, media, and stylesheets to save bandwidth on e2-micro
+  // Block images, fonts, media, and stylesheets to save bandwidth
   await page.setRequestInterception(true);
   page.on('request', (req) => {
-    const resourceType = req.resourceType();
-    if (['image', 'font', 'media', 'stylesheet'].includes(resourceType)) {
+    if (['image', 'font', 'media', 'stylesheet'].includes(req.resourceType())) {
       req.abort();
     } else {
       req.continue();
     }
   });
 
-  logger.info('Browser page created with cookie and user agent injected');
+  logger.info('Browser page created with proxy auth, cookie, and user agent injected');
   return page;
 }
 
 /**
  * Close a browser instance cleanly.
- * Safe to call even if browser is already closed.
+ * Safe to call even if browser is already closed or null.
  * Never throws — logs warning on failure only.
  *
  * @param {import('puppeteer-core').Browser|null} browser - Browser instance to close
@@ -131,7 +129,6 @@ async function createPage(browser, cookie, userAgent) {
  */
 async function closeBrowser(browser) {
   if (!browser) return;
-
   try {
     await browser.close();
     logger.info('Browser closed successfully');

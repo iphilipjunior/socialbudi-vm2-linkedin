@@ -142,7 +142,9 @@ async function scrapeSearchResults(userId, searchUrl) {
   try {
     // Step 4: Launch browser and create page
     browser = await puppeteerService.launchBrowser();
+    logger.info('Browser launched with residential proxy');
     const page = await puppeteerService.createPage(browser, cookie, userAgent);
+    logger.info('Page created successfully');
 
     // Step 5: Navigate to search URL
     logger.info('Navigating to LinkedIn search URL', { searchUrl });
