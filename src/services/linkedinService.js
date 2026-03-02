@@ -141,12 +141,8 @@ async function scrapeSearchResults(userId, searchUrl) {
 
   try {
     // Step 4: Launch browser and create page
-    const useBrightData = process.env.USE_BRIGHTDATA === 'true';
-    browser = useBrightData
-      ? await puppeteerService.launchBrowserBrightData()
-      : await puppeteerService.launchBrowser();
-    logger.info('Browser launched', { provider: useBrightData ? 'brightdata' : 'local' });
-    logger.info('Creating page via Bright Data');
+    browser = await puppeteerService.launchBrowser();
+    logger.info('Browser launched with residential proxy');
     const page = await puppeteerService.createPage(browser, cookie, userAgent);
     logger.info('Page created successfully');
 
