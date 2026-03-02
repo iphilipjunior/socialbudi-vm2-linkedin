@@ -44,6 +44,7 @@ async function launchBrowser() {
   const browser = await puppeteer.launch({
     executablePath,
     headless: true,
+    protocolTimeout: 60000,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -91,8 +92,8 @@ async function createPage(browser, cookie, userAgent) {
   await page.setUserAgent(ua);
 
   // Set default navigation timeout (30 seconds)
-  page.setDefaultNavigationTimeout(30000);
-  page.setDefaultTimeout(30000);
+  page.setDefaultNavigationTimeout(60000);
+  page.setDefaultTimeout(60000);
 
   // Inject LinkedIn li_at cookie
   await page.setCookie({

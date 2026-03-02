@@ -36,7 +36,7 @@ async function scrapeProfile(userId, profileUrl) {
   logger.info('scrapeProfile started', { userId, profileUrl });
 
   // Step 1: Check rate limit
-  const limitCheck = rateLimiter.checkLimit(userId);
+  const limitCheck = rateLimiter.checkRateLimit(userId);
   if (!limitCheck.allowed) {
     logger.warn('Rate limit exceeded for user', {
       userId,
@@ -76,7 +76,6 @@ async function scrapeProfile(userId, profileUrl) {
     cookieManager.updateCookieLastUsed(userId);
 
     // Step 8: Increment rate limit counter
-    rateLimiter.incrementCount(userId);
 
     logger.info('scrapeProfile completed successfully', {
       userId,
