@@ -34,7 +34,7 @@ async function launchBrowser() {
   if (!proxyUsername) throw new Error('DECODO_PROXY_USER environment variable is not set');
   if (!proxyPassword) throw new Error('DECODO_PROXY_PASS environment variable is not set');
 
-  const proxyUrl = `http://${proxyHost}:${proxyPort}`;
+  const proxyUrl = `${proxyHost}:${proxyPort}`;
   logger.info('Launching Chromium browser with residential proxy', { proxyHost, proxyPort });
 
   const browser = await puppeteer.launch({
