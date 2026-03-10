@@ -2,7 +2,7 @@
  * @fileoverview Puppeteer browser management service.
  * Handles Chromium browser lifecycle for LinkedIn scraping.
  * Uses puppeteer-core with system Chromium (snap install).
- * Configured for GCP e2-micro VM with Bright Data residential proxy.
+ * Configured for GCP e2-micro VM with Decodo residential proxy.
  */
 
 'use strict';
@@ -14,7 +14,7 @@ const DEFAULT_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKi
 const LINKEDIN_DOMAIN = 'linkedin.com';
 
 /**
- * Launch a local Chromium browser instance with Bright Data residential proxy.
+ * Launch a local Chromium browser instance with Decodo residential proxy.
  * Proxy routes all traffic through residential IPs for LinkedIn anti-detection.
  *
  * @returns {Promise<import('puppeteer-core').Browser>} Browser instance
@@ -22,19 +22,19 @@ const LINKEDIN_DOMAIN = 'linkedin.com';
  */
 async function launchBrowser() {
   const executablePath = process.env.CHROMIUM_PATH;
-  const proxyHost = process.env.BRIGHTDATA_PROXY_HOST;
-  const proxyPort = process.env.BRIGHTDATA_PROXY_PORT;
+  const proxyHost = process.env.DECODO_PROXY_HOST;
+  const proxyPort = process.env.DECODO_PROXY_PORT;
 
-  const proxyUsername = process.env.BRIGHTDATA_PROXY_USERNAME;
-  const proxyPassword = process.env.BRIGHTDATA_PROXY_PASSWORD;
+  const proxyUsername = process.env.DECODO_PROXY_USER;
+  const proxyPassword = process.env.DECODO_PROXY_PASS;
 
   if (!executablePath) throw new Error('CHROMIUM_PATH environment variable is not set');
-  if (!proxyHost) throw new Error('BRIGHTDATA_PROXY_HOST environment variable is not set');
-  if (!proxyPort) throw new Error('BRIGHTDATA_PROXY_PORT environment variable is not set');
-  if (!proxyUsername) throw new Error('BRIGHTDATA_PROXY_USERNAME environment variable is not set');
-  if (!proxyPassword) throw new Error('BRIGHTDATA_PROXY_PASSWORD environment variable is not set');
+  if (!proxyHost) throw new Error('DECODO_PROXY_HOST environment variable is not set');
+  if (!proxyPort) throw new Error('DECODO_PROXY_PORT environment variable is not set');
+  if (!proxyUsername) throw new Error('DECODO_PROXY_USER environment variable is not set');
+  if (!proxyPassword) throw new Error('DECODO_PROXY_PASS environment variable is not set');
 
-  const proxyUrl = `https://${proxyHost}:${proxyPort}`;
+  const proxyUrl = `http://${proxyHost}:${proxyPort}`;
   logger.info('Launching Chromium browser with residential proxy', { proxyHost, proxyPort });
 
   const browser = await puppeteer.launch({
@@ -65,7 +65,7 @@ async function launchBrowser() {
 
 /**
  * Create a new browser page with proxy authentication, LinkedIn cookie, and user agent injected.
- * Authenticates with Bright Data residential proxy credentials.
+ * Authenticates with Decodo residential proxy credentials.
  * Injects li_at session cookie for LinkedIn authentication.
  * Blocks images, fonts, media, and stylesheets to reduce bandwidth on e2-micro VM.
  *
@@ -76,11 +76,11 @@ async function launchBrowser() {
  * @throws {Error} If page creation, proxy auth, or cookie injection fails
  */
 async function createPage(browser, cookie, userAgent) {
-  const proxyUsername = process.env.BRIGHTDATA_PROXY_USERNAME;
-  const proxyPassword = process.env.BRIGHTDATA_PROXY_PASSWORD;
+  const proxyUsername = process.env.DECODO_PROXY_USER;
+  const proxyPassword = process.env.DECODO_PROXY_PASS;
 
-  if (!proxyUsername) throw new Error('BRIGHTDATA_PROXY_USERNAME environment variable is not set');
-  if (!proxyPassword) throw new Error('BRIGHTDATA_PROXY_PASSWORD environment variable is not set');
+  if (!proxyUsername) throw new Error('DECODO_PROXY_USER environment variable is not set');
+  if (!proxyPassword) throw new Error('DECODO_PROXY_PASS environment variable is not set');
 
   const page = await browser.newPage();
 
