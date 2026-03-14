@@ -10,17 +10,17 @@ const supabase = require('../config/supabase');
 const logger = require('../utils/logger');
 
 /**
- * Fetch a user's LinkedIn cookie and user agent from Supabase.
+ * Fetch a user's LinkedIn cookies and user agent from Supabase.
  * Called by scraping services before launching Puppeteer.
  *
  * @param {string} userId - The user's UUID from the users table (users.id)
- * @returns {Promise<{cookie: string, userAgent: string|null}>} Cookie data
+ * @returns {Promise<{cookie: string, jsessionid: string|null, bcookie: string|null, userAgent: string|null}>} Cookie data
  * @throws {Error} If user not found or linkedin_cookie is null/empty
  */
 async function getUserCookie(userId) {
   const { data: user, error } = await supabase
     .from('users')
-    .select('linkedin_cookie, linkedin_user_agent')
+    .select('linkedin_cookie, linkedin_jsessionid, linkedin_bcookie, linkedin_user_agent, cookie_updated_at')
     .eq('id', userId)
     .single();
 
@@ -45,6 +45,8 @@ async function getUserCookie(userId) {
 
   return {
     cookie: user.linkedin_cookie,
+    jsessionid: user.linkedin_jsessionid || null,
+    bcookie: user.linkedin_bcookie || null,
     userAgent: user.linkedin_user_agent || null
   };
 }

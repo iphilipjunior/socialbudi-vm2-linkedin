@@ -66,16 +66,18 @@ async function launchBrowser() {
 /**
  * Create a new browser page with proxy authentication, LinkedIn cookie, and user agent injected.
  * Authenticates with Decodo residential proxy credentials.
- * Injects li_at session cookie for LinkedIn authentication.
+ * Injects li_at, JSESSIONID, and bcookie for LinkedIn authentication.
  * Blocks images, fonts, media, and stylesheets to reduce bandwidth on e2-micro VM.
  *
  * @param {import('puppeteer-core').Browser} browser - Active browser instance
  * @param {string} cookie - LinkedIn li_at cookie value
  * @param {string|null} userAgent - Browser user agent string (uses default if null)
+ * @param {string|null} jsessionid - LinkedIn JSESSIONID cookie value (optional)
+ * @param {string|null} bcookie - LinkedIn bcookie value (optional)
  * @returns {Promise<import('puppeteer-core').Page>} Configured page instance
  * @throws {Error} If page creation, proxy auth, or cookie injection fails
  */
-async function createPage(browser, cookie, userAgent) {
+async function createPage(browser, cookie, userAgent, jsessionid, bcookie) {
   const proxyUsername = process.env.DECODO_PROXY_USER;
   const proxyPassword = process.env.DECODO_PROXY_PASS;
 
@@ -109,6 +111,32 @@ async function createPage(browser, cookie, userAgent) {
     secure: true
   });
   logger.info('LinkedIn cookie injected successfully');
+
+  // Inject JSESSIONID if provided
+  if (jsessionid) {
+    await page.setCookie({
+      name: 'JSESSIONID',
+      value: jsessionid,
+      domain: '.linkedin.com',
+      path: '/',
+      httpOnly: true,
+      secure: true
+    });
+  }
+
+  // Inject bcookie if provided
+  if (bcookie) {
+    await page.setCookie({
+      name: 'bcookie',
+      value: bcookie,
+      domain: '.linkedin.com',
+      path: '/',
+      httpOnly: false,
+      secure: false
+    });
+  }
+
+  logger.info('All LinkedIn cookies injected', { has_jsessionid: !!jsessionid, has_bcookie: !!bcookie });
 
   // Block images, fonts, media, and stylesheets to save bandwidth
   await page.setRequestInterception(true);
