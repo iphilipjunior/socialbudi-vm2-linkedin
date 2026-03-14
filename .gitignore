@@ -4,3 +4,4 @@ logs/*.log
 .pm2/
 .DS_Store
 coverage/
+socialbudi-vm2-linkedin.code-workspace
