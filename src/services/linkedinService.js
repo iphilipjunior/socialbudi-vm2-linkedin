@@ -50,7 +50,7 @@ async function scrapeProfile(userId, profileUrl) {
   }
 
   // Step 2: Fetch cookie
-  const { cookie, userAgent } = await cookieManager.getUserCookie(userId);
+  const { cookie, jsessionid, bcookie, userAgent } = await cookieManager.getUserCookie(userId);
 
   // Step 3: Random delay (anti-detection)
   await retry.randomDelay();
@@ -60,7 +60,7 @@ async function scrapeProfile(userId, profileUrl) {
   try {
     // Step 4: Launch browser and create page
     browser = await puppeteerService.launchBrowser();
-    const page = await puppeteerService.createPage(browser, cookie, userAgent);
+    const page = await puppeteerService.createPage(browser, cookie, userAgent, jsessionid, bcookie);
 
     // Step 5: Navigate to profile
     logger.info('Navigating to LinkedIn profile', { profileUrl });
@@ -132,7 +132,7 @@ async function scrapeSearchResults(userId, searchUrl) {
   }
 
   // Step 2: Fetch cookie
-  const { cookie, userAgent } = await cookieManager.getUserCookie(userId);
+  const { cookie, jsessionid, bcookie, userAgent } = await cookieManager.getUserCookie(userId);
 
   // Step 3: Random delay (anti-detection)
   await retry.randomDelay();
@@ -143,7 +143,7 @@ async function scrapeSearchResults(userId, searchUrl) {
     // Step 4: Launch browser and create page
     browser = await puppeteerService.launchBrowser();
     logger.info('Browser launched with residential proxy');
-    const page = await puppeteerService.createPage(browser, cookie, userAgent);
+    const page = await puppeteerService.createPage(browser, cookie, userAgent, jsessionid, bcookie);
     logger.info('Page created successfully');
 
     // Step 5: Navigate to search URL
