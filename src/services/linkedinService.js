@@ -156,6 +156,10 @@ async function scrapeSearchResults(userId, searchUrl) {
     });
     logger.info('Navigation completed');
 
+    // Wait for LinkedIn mobile page to fully render after navigation
+    await new Promise(r => setTimeout(r, 10000));
+    logger.info('Post-navigation wait complete');
+
     // Step 6: Parse search results
     const results = await parser.parseSearchResults(page);
 
