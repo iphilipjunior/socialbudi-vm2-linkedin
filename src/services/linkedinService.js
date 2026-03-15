@@ -156,8 +156,12 @@ async function scrapeSearchResults(userId, searchUrl) {
     });
     logger.info('Navigation completed');
 
-    // Enable resource blocking AFTER navigation to avoid interfering with
-    // LinkedIn's mobile redirect logic during initial page load
+    // Wait 10s for LinkedIn mobile page to fully render profile cards
+    // Profile cards appear at ~4s; resource blocking must not start before then
+    await new Promise(r => setTimeout(r, 10000));
+    logger.info('Post-navigation render wait complete');
+
+    // Enable resource blocking AFTER page has fully rendered
     await page.setRequestInterception(true);
     page.on('request', (req) => {
       if (['image', 'font', 'media', 'stylesheet'].includes(req.resourceType())) {
@@ -167,10 +171,6 @@ async function scrapeSearchResults(userId, searchUrl) {
       }
     });
     logger.info('Resource blocking enabled post-navigation');
-
-    // Wait for profile cards to render
-    await new Promise(r => setTimeout(r, 5000));
-    logger.info('Post-navigation render wait complete');
 
     // Step 6: Parse search results
     const results = await parser.parseSearchResults(page);
