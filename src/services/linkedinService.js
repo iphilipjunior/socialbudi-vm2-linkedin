@@ -202,17 +202,92 @@ async function scrapeSearchResults(userId, searchUrl) {
 
 /**
  * Scrape a list of LinkedIn profile URLs in bulk.
- * PLACEHOLDER — full implementation in Step 9.
+ * Scrapes sequentially with random delay between each profile.
+ * Partial success supported — failed profiles are logged but do not abort.
+ * Rate limit is shared with scrapeProfile and scrapeSearchResults.
  *
- * @param {string} userId - User UUID
- * @param {string[]} profileUrls - Array of LinkedIn profile URLs
- * @returns {Promise<object>} Placeholder response
+ * @param {string} userId - User UUID from users.id
+ * @param {string[]} profileUrls - Array of LinkedIn profile URLs (max 50)
+ * @returns {Promise<{success: boolean, total_requested: number, total_scraped: number, failed: number, data: Array, errors: Array, scraped_at: string}>}
+ * @throws {Error} On rate limit exceeded or cookie missing
  */
 async function scrapeBulk(userId, profileUrls) {
-  logger.info('scrapeBulk called (placeholder)', { userId, count: profileUrls.length });
+  logger.info('scrapeBulk started', { userId, count: profileUrls.length });
+
+  // Cap at 50 profiles per request
+  const urls = profileUrls.slice(0, 50);
+
+  // Check rate limit upfront — verify enough quota remains
+  const limitCheck = rateLimiter.checkRateLimit(userId);
+  if (!limitCheck.allowed) {
+    const err = new Error('Daily rate limit exceeded');
+    err.statusCode = 429;
+    err.limitData = limitCheck;
+    throw err;
+  }
+
+  // Fetch cookie once — reuse across all profiles
+  const { cookie, jsessionid, bcookie, userAgent } = await cookieManager.getUserCookie(userId);
+
+  const results = [];
+  const errors = [];
+
+  for (let i = 0; i < urls.length; i++) {
+    const profileUrl = urls[i];
+
+    // Check rate limit before each profile
+    const check = rateLimiter.checkRateLimit(userId);
+    if (!check.allowed) {
+      logger.warn('Rate limit reached mid-bulk', { userId, scraped: i, remaining: urls.length - i });
+      errors.push({ profile_url: profileUrl, error: 'Daily rate limit reached' });
+      // Add remaining URLs to errors
+      for (let j = i + 1; j < urls.length; j++) {
+        errors.push({ profile_url: urls[j], error: 'Daily rate limit reached' });
+      }
+      break;
+    }
+
+    let browser = null;
+    try {
+      // Random delay between profiles (anti-detection)
+      if (i > 0) await retry.randomDelay();
+
+      browser = await puppeteerService.launchBrowser();
+      const page = await puppeteerService.createPage(browser, cookie, userAgent, jsessionid, bcookie);
+
+      logger.info('Navigating to profile', { profileUrl, index: i + 1, total: urls.length });
+      await page.goto(profileUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+
+      const profileData = await parser.parseProfile(page);
+      results.push({ ...profileData, profile_url: profileUrl });
+      logger.info('Profile scraped successfully', { profileUrl, name: profileData.name || 'unknown' });
+
+    } catch (err) {
+      logger.error('Failed to scrape profile', { profileUrl, error: err.message });
+      errors.push({ profile_url: profileUrl, error: err.message });
+    } finally {
+      await puppeteerService.closeBrowser(browser);
+    }
+  }
+
+  // Update cookie last used (fire-and-forget)
+  cookieManager.updateCookieLastUsed(userId);
+
+  logger.info('scrapeBulk completed', {
+    userId,
+    total_requested: urls.length,
+    total_scraped: results.length,
+    failed: errors.length
+  });
+
   return {
-    placeholder: true,
-    message: 'LinkedIn bulk scraping not yet implemented — coming in Step 9'
+    success: true,
+    total_requested: urls.length,
+    total_scraped: results.length,
+    failed: errors.length,
+    data: results,
+    errors,
+    scraped_at: new Date().toISOString()
   };
 }
 
