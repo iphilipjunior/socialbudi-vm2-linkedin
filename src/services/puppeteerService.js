@@ -65,7 +65,7 @@ async function launchBrowser() {
 /**
  * Create a new browser page with mobile iPhone viewport, LinkedIn cookies injected.
  * Uses mobile UA — LinkedIn serves full content to mobile user agents.
- * Blocks images, fonts, media, and stylesheets to reduce bandwidth on e2-micro VM.
+ * Resource blocking is NOT set up here — caller must enable it post-navigation.
  * No page.authenticate() needed — SOCKS5 credentials are in the proxy URL.
  *
  * @param {import('puppeteer-core').Browser} browser - Active browser instance
@@ -132,16 +132,6 @@ async function createPage(browser, cookie, userAgent, jsessionid, bcookie) {
   logger.info('All LinkedIn cookies injected', {
     has_jsessionid: !!jsessionid,
     has_bcookie: !!bcookie
-  });
-
-  // Block images, fonts, media, and stylesheets to save bandwidth
-  await page.setRequestInterception(true);
-  page.on('request', (req) => {
-    if (['image', 'font', 'media', 'stylesheet'].includes(req.resourceType())) {
-      req.abort();
-    } else {
-      req.continue();
-    }
   });
 
   logger.info('Browser page created with mobile UA and cookies injected');
