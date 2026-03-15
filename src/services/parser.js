@@ -262,6 +262,8 @@ async function parseProfile(page) {
 
 /**
  * Parse a LinkedIn search results page into an array of profile stubs.
+ * Uses confirmed working selectors from the mobile LinkedIn search page.
+ * Waits up to 15s for profile cards, then waits 3s for all cards to render.
  * Returns empty array if no results found — never throws.
  *
  * @param {import('puppeteer-core').Page} page - Loaded LinkedIn search results page
@@ -270,51 +272,72 @@ async function parseProfile(page) {
 async function parseSearchResults(page) {
   logger.info('Parsing LinkedIn search results page');
 
-  const results = [];
-
+  // Wait up to 15s for profile cards to appear
   try {
-    const items = await trySelectorsAll(page, SELECTORS.searchResults.container);
-
-    for (const item of items) {
-      try {
-        const name = await getTextFromElement(item, SELECTORS.searchResults.name);
-        const headline = await getTextFromElement(item, SELECTORS.searchResults.headline);
-        const location = await getTextFromElement(item, SELECTORS.searchResults.location);
-
-        // Get profile URL
-        let profile_url = '';
-        for (const selector of SELECTORS.searchResults.profileUrl) {
-          try {
-            profile_url = await item.$eval(selector, el => el.href || '');
-            if (profile_url) break;
-          } catch {
-            // try next
-          }
-        }
-
-        // Clean up LinkedIn tracking params from URL
-        if (profile_url) {
-          try {
-            const url = new URL(profile_url);
-            profile_url = `${url.origin}${url.pathname}`;
-          } catch {
-            // keep as-is
-          }
-        }
-
-        if (name || profile_url) {
-          results.push({ name, headline, location, profile_url });
-        }
-      } catch (err) {
-        logger.warn('Failed to parse individual search result', { error: err.message });
-      }
-    }
-  } catch (err) {
-    logger.warn('Failed to parse search results page', { error: err.message });
+    await page.waitForSelector('a[href*="/in/"]', { timeout: 15000 });
+  } catch (e) {
+    logger.warn('No profile cards found within timeout');
+    return [];
   }
 
-  logger.info(`Search results parsed: ${results.length} profiles found`);
-  return results;
+  // Wait extra 3s for all cards to render
+  await new Promise(r => setTimeout(r, 3000));
+
+  const profiles = await page.evaluate(() => {
+    const results = [];
+    const seen = new Set();
+
+    document.querySelectorAll('a[href*="/in/"]').forEach(el => {
+      const href = el.getAttribute('href');
+      if (!href || !href.includes('/in/')) return;
+
+      // Clean URL — remove tracking params
+      const cleanUrl = href.split('?')[0];
+      if (seen.has(cleanUrl)) return;
+      seen.add(cleanUrl);
+
+      // Extract text lines from anchor content
+      const lines = el.innerText
+        .split('\n')
+        .map(l => l.trim())
+        .filter(l => l.length > 0);
+
+      // Extract name from img alt attribute (most reliable)
+      const img = el.querySelector('img');
+      const name = (img && img.alt && img.alt.trim())
+        ? img.alt.trim()
+        : (lines[0] || '');
+
+      // Headline is the longest text line that's not the name
+      const headline = lines.find(l =>
+        l !== name &&
+        l.length > 10 &&
+        !l.match(/^\d+(st|nd|rd|th)$/) &&
+        !l.includes('Connect') &&
+        !l.includes('Follow')
+      ) || '';
+
+      // Location — look for a line after headline
+      const headlineIdx = lines.indexOf(headline);
+      const location = headlineIdx >= 0 && lines[headlineIdx + 1]
+        ? lines[headlineIdx + 1]
+        : '';
+
+      if (name) {
+        results.push({
+          name: name.replace(/\s+(1st|2nd|3rd)$/, '').trim(),
+          headline,
+          location,
+          profile_url: cleanUrl
+        });
+      }
+    });
+
+    return results;
+  });
+
+  logger.info('Search results parsed: ' + profiles.length + ' profiles found');
+  return profiles;
 }
 
 module.exports = { parseProfile, parseSearchResults };

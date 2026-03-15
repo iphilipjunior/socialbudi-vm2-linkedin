@@ -147,8 +147,10 @@ async function scrapeSearchResults(userId, searchUrl) {
     logger.info('Page created successfully');
 
     // Step 5: Navigate to search URL
-    logger.info('Navigating to LinkedIn search URL', { searchUrl });
-    await page.goto(searchUrl, {
+    // Convert desktop URL to mobile URL for reliable content rendering
+    const mobileUrl = searchUrl.replace('linkedin.com/search/', 'linkedin.com/m/search/');
+    logger.info('Navigating to LinkedIn mobile search URL', { mobileUrl });
+    await page.goto(mobileUrl, {
       waitUntil: 'domcontentloaded',
       timeout: 60000
     });

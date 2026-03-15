@@ -12,7 +12,7 @@ Deploy path: /var/www/linkedin-scraper
 - Phase 6 Step 5: Puppeteer Service ✅ (launchBrowser, createPage, closeBrowser)
 - Phase 6 Step 6: LinkedIn HTML Parser ✅ (parseProfile, parseSearchResults — multi-selector fallbacks)
 - Phase 6 Step 7: Single Profile Scraper ✅ (scrapeProfile — full chain: rateLimiter → cookie → browser → parser)
-- Phase 6 Step 8: Search Export Scraper ✅ (scrapeSearchResults — domcontentloaded, 60s timeout, returns array of profile stubs; Decodo residential proxy via local Chromium; all 3 LinkedIn cookies injected: li_at, JSESSIONID, bcookie)
+- Phase 6 Step 8: Search Export Scraper ✅ (scrapeSearchResults — domcontentloaded, 60s timeout, returns array of profile stubs; Decodo SOCKS5 proxy via gate.decodo.com:7000; puppeteer-extra + stealth plugin; mobile iPhone UA for content rendering; all 3 LinkedIn cookies injected: li_at, JSESSIONID, bcookie; a[href*="/in/"] selector parses profile cards)
 
 ## In Progress
 - Phase 6 Step 9: Bulk Scraper
