@@ -366,58 +366,64 @@ async function parseSearchResults(page) {
   // Wait extra 3s for all cards to render
   await new Promise(r => setTimeout(r, 3000));
 
-  const profiles = await page.evaluate(() => {
-    const results = [];
-    const seen = new Set();
+  let profiles = [];
+  try {
+    profiles = await page.evaluate(() => {
+      const results = [];
+      const seen = new Set();
 
-    document.querySelectorAll('a[href*="/in/"]').forEach(el => {
-      const href = el.getAttribute('href');
-      if (!href || !href.includes('/in/')) return;
+      document.querySelectorAll('a[href*="/in/"]').forEach(el => {
+        const href = el.getAttribute('href');
+        if (!href || !href.includes('/in/')) return;
 
-      // Clean URL — remove tracking params
-      const cleanUrl = href.split('?')[0];
-      if (seen.has(cleanUrl)) return;
-      seen.add(cleanUrl);
+        // Clean URL — remove tracking params
+        const cleanUrl = href.split('?')[0];
+        if (seen.has(cleanUrl)) return;
+        seen.add(cleanUrl);
 
-      // Extract text lines from anchor content
-      const lines = el.innerText
-        .split('\n')
-        .map(l => l.trim())
-        .filter(l => l.length > 0);
+        // Extract text lines from anchor content
+        const lines = el.innerText
+          .split('\n')
+          .map(l => l.trim())
+          .filter(l => l.length > 0);
 
-      // Extract name from img alt attribute (most reliable)
-      const img = el.querySelector('img');
-      const name = (img && img.alt && img.alt.trim())
-        ? img.alt.trim()
-        : (lines[0] || '');
+        // Extract name from img alt attribute (most reliable)
+        const img = el.querySelector('img');
+        const name = (img && img.alt && img.alt.trim())
+          ? img.alt.trim()
+          : (lines[0] || '');
 
-      // Headline is the longest text line that's not the name
-      const headline = lines.find(l =>
-        l !== name &&
-        l.length > 10 &&
-        !l.match(/^\d+(st|nd|rd|th)$/) &&
-        !l.includes('Connect') &&
-        !l.includes('Follow')
-      ) || '';
+        // Headline is the longest text line that's not the name
+        const headline = lines.find(l =>
+          l !== name &&
+          l.length > 10 &&
+          !l.match(/^\d+(st|nd|rd|th)$/) &&
+          !l.includes('Connect') &&
+          !l.includes('Follow')
+        ) || '';
 
-      // Location — look for a line after headline
-      const headlineIdx = lines.indexOf(headline);
-      const location = headlineIdx >= 0 && lines[headlineIdx + 1]
-        ? lines[headlineIdx + 1]
-        : '';
+        // Location — look for a line after headline
+        const headlineIdx = lines.indexOf(headline);
+        const location = headlineIdx >= 0 && lines[headlineIdx + 1]
+          ? lines[headlineIdx + 1]
+          : '';
 
-      if (name) {
-        results.push({
-          name: name.replace(/\s+(1st|2nd|3rd)$/, '').trim(),
-          headline,
-          location,
-          profile_url: cleanUrl
-        });
-      }
+        if (name) {
+          results.push({
+            name: name.replace(/\s+(1st|2nd|3rd)$/, '').trim(),
+            headline,
+            location,
+            profile_url: cleanUrl
+          });
+        }
+      });
+
+      return results;
     });
-
-    return results;
-  });
+  } catch (err) {
+    logger.warn('page.evaluate failed in parseSearchResults', { error: err.message });
+    return [];
+  }
 
   logger.info('Search results parsed: ' + profiles.length + ' profiles found');
   return profiles;
