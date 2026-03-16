@@ -6,9 +6,9 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "jest --coverage",
-    "test:unit": "jest tests/unit --coverage",
-    "test:integration": "jest tests/integration --coverage"
+    "test": "jest --testEnvironment=node --forceExit",
+    "test:unit": "jest tests/unit --testEnvironment=node --forceExit",
+    "test:integration": "jest tests/integration --testEnvironment=node --forceExit"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
@@ -27,6 +27,8 @@
   },
   "jest": {
     "testEnvironment": "node",
+    "testMatch": ["**/tests/**/*.test.js"],
+    "collectCoverageFrom": ["src/**/*.js"],
     "coverageThreshold": {
       "global": {
         "branches": 70,
