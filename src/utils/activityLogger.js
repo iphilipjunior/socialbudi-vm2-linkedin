@@ -14,23 +14,27 @@ const logger = require('./logger');
  * @param {object|null} metadata - Additional data (never include cookie/key values)
  */
 function logActivity(logLevel, action, message, userId = null, metadata = null) {
-  supabase
-    .from('system_logs')
-    .insert({
-      log_level: logLevel,
-      action,
-      message,
-      user_id: userId || null,
-      metadata: metadata || null
-    })
-    .then(({ error }) => {
-      if (error) {
-        logger.warn('Failed to write activity log to Supabase', { error: error.message });
-      }
-    })
-    .catch(err => {
-      logger.warn('Activity log insert threw', { error: err.message });
-    });
+  try {
+    supabase
+      .from('system_logs')
+      .insert({
+        log_level: logLevel,
+        action,
+        message,
+        user_id: userId || null,
+        metadata: metadata || null
+      })
+      .then(({ error }) => {
+        if (error) {
+          logger.warn('Failed to write activity log to Supabase', { error: error.message });
+        }
+      })
+      .catch(err => {
+        logger.warn('Activity log insert threw', { error: err.message });
+      });
+  } catch (err) {
+    logger.warn('Activity log synchronous error', { error: err.message });
+  }
 }
 
 module.exports = { logActivity };

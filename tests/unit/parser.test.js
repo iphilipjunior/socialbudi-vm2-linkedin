@@ -144,12 +144,10 @@ describe('parseSearchResults', () => {
   });
 
   it('returns empty array when evaluate rejects unexpectedly', async () => {
-    // parseSearchResults does not catch evaluate errors — but the test confirms
-    // the general shape; if evaluate throws, it propagates
     const page = makeMockPage({
       evaluate: jest.fn().mockRejectedValue(new Error('Execution context destroyed'))
     });
-
-    await expect(runParse(page)).rejects.toThrow('Execution context destroyed');
+    const result = await runParse(page);
+    expect(result).toEqual([]);
   });
 });
