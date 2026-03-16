@@ -1,97 +1,166 @@
-# SocialBudi VM2 - LinkedIn Scraper
+# SocialBudi VM2 — LinkedIn Scraper Service
 
-LinkedIn profile scraping service for the SocialBudi platform. Runs on VM2 (`socialbudi-li.int.yt`) and authenticates requests via API keys stored in Supabase.
+A production-grade LinkedIn scraping microservice for the SocialBudi platform.
+Runs on VM2 (`socialbudi-li.int.yt`), authenticates via API keys stored in Supabase,
+and uses Puppeteer with a residential SOCKS5 proxy to render authenticated LinkedIn pages.
 
-## Setup
+---
 
-```bash
-# 1. Clone the repository
-git clone https://github.com/iphilipjunior/socialbudi-vm2-linkedin.git
-cd socialbudi-vm2-linkedin
+## Endpoints
 
-# 2. Install dependencies
-npm install
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/linkedin/profile` | Scrape a single LinkedIn profile |
+| POST | `/api/linkedin/search-export` | Export profiles from a LinkedIn search URL |
+| POST | `/api/linkedin/bulk` | Scrape up to 50 profiles in one request |
+| GET | `/health` | Health check (no auth required) |
 
-# 3. Configure environment
-cp .env.example .env
-# Edit .env and fill in your SUPABASE_URL and SUPABASE_SERVICE_KEY
+All endpoints require the `X-API-Key` header.
 
-# 4. Start with PM2
-pm2 start ecosystem.config.js
-```
+---
 
-## API Endpoints
+## Rate Limiting
 
-All endpoints require an `X-API-Key` header with a valid API key.
+- **100 profiles per user per day** (resets at midnight UTC)
+- Applies to `/profile` (1 per call) and `/bulk` (1 per URL)
+- Returns `429 Too Many Requests` when limit is exceeded
 
-### Health Check
-
-```
-GET /health
-```
-
-Returns service status. No authentication required.
-
-### Scrape Single Profile
-
-```
-POST /api/linkedin/profile
-Content-Type: application/json
-X-API-Key: your-api-key
-
-{
-  "profile_url": "https://www.linkedin.com/in/username/"
-}
-```
-
-### Search Export
-
-```
-POST /api/linkedin/search-export
-Content-Type: application/json
-X-API-Key: your-api-key
-
-{
-  "search_url": "https://www.linkedin.com/search/results/people/?keywords=CEO"
-}
-```
-
-### Bulk Profile Scrape
-
-```
-POST /api/linkedin/bulk
-Content-Type: application/json
-X-API-Key: your-api-key
-
-{
-  "profile_urls": [
-    "https://www.linkedin.com/in/user1/",
-    "https://www.linkedin.com/in/user2/"
-  ]
-}
-```
-
-Maximum 50 URLs per request.
+---
 
 ## Authentication
 
-All scraping endpoints require an `X-API-Key` header. The key must exist in the `api_keys` table in Supabase with `is_active = true` and `service` set to `'linkedin'` or `'all'`.
+Every request must include:
 
-## Rate Limits
+```
+X-API-Key: <your-api-key>
+```
 
-- **100 profiles per day** per user (all endpoints combined)
-- Resets at **midnight UTC**
-- Exceeding the limit returns HTTP 429
+API keys are validated against the `api_keys` table in Supabase.
+The associated user record (`users` table) provides the LinkedIn session cookie.
+
+---
+
+## Tech Stack
+
+| Component | Choice |
+|-----------|--------|
+| Runtime | Node.js 20 |
+| HTTP framework | Express 4 |
+| Browser automation | Puppeteer-extra + StealthPlugin |
+| Proxy | Decodo SOCKS5 (`gate.decodo.com:7000`) |
+| Browser | Chromium (snap) |
+| Database / Auth | Supabase (PostgreSQL) |
+| Logging | Winston (structured JSON) |
+| Tests | Jest 29 + Supertest |
+
+---
+
+## Environment Variables
+
+Copy `.env.example` to `.env` and fill in all values.
+
+```env
+# Server
+PORT=3000
+NODE_ENV=production
+
+# Supabase
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_KEY=your-service-role-key
+
+# Decodo SOCKS5 Proxy
+DECODO_SOCKS5_USER=your-socks5-username
+DECODO_SOCKS5_PASS=your-socks5-password
+```
+
+---
+
+## Running Locally
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server (nodemon)
+npm run dev
+
+# Start production server
+npm start
+```
+
+---
+
+## Running Tests
+
+```bash
+# All tests
+npm test
+
+# Unit tests only
+npm run test:unit
+
+# Integration tests only
+npm run test:integration
+```
+
+All 49 tests should pass. No external services are called during tests — all
+Supabase and Puppeteer interactions are mocked.
+
+---
 
 ## Deployment
 
 ```bash
-# Deploy latest changes
-./deploy.sh
-
-# View logs
-pm2 logs socialbudi-linkedin
-
-# Monitor
-pm2 monit
+# On VM2 (Ubuntu)
+git pull origin master
+npm install --omit=dev
+pm2 restart socialbudi-linkedin
 ```
+
+Ensure the following are configured on the VM:
+- Chromium installed via snap: `sudo snap install chromium`
+- `.env` file present at the project root
+- PM2 process manager running the service
+
+---
+
+## Project Structure
+
+```
+src/
+  config/
+    supabase.js          # Supabase client initialisation
+  controllers/
+    linkedinController.js # Express route handlers
+  middleware/
+    auth.js              # API key validation middleware
+    rateLimiter.js       # Per-user daily rate limit (in-memory)
+    validator.js         # express-validator rules
+  routes/
+    linkedin.js          # Route definitions
+  services/
+    cookieManager.js     # Fetch LinkedIn cookies from Supabase
+    linkedinService.js   # Orchestrates browser + parser per use-case
+    parser.js            # Extract structured data from rendered pages
+    puppeteerService.js  # Launch browser, create authenticated page
+  utils/
+    activityLogger.js    # Fire-and-forget Supabase activity logging
+    logger.js            # Winston logger
+  server.js              # Express app + server startup
+tests/
+  unit/
+    activityLogger.test.js
+    parser.test.js
+    rateLimiter.test.js
+  integration/
+    endpoints.test.js
+docs/
+  API_LINKEDIN.md        # Full API reference
+  nginx.conf             # Reverse-proxy config for VM2
+```
+
+---
+
+## License
+
+Proprietary — SocialBudi. All rights reserved.
