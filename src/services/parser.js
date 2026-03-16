@@ -176,7 +176,9 @@ async function getTextFromElement(element, selectors, fallback = '') {
 
 /**
  * Parse a LinkedIn profile page into structured data.
- * Never throws — missing fields return empty string or empty array.
+ * Uses body text line parsing — mobile LinkedIn has no stable CSS class names.
+ * Detects section headers (About, Experience, Education, Skills, etc.) by text,
+ * then extracts data by line position relative to those headers.
  *
  * @param {import('puppeteer-core').Page} page - Loaded LinkedIn profile page
  * @returns {Promise<object>} Structured profile data
@@ -186,76 +188,157 @@ async function parseProfile(page) {
 
   const profileUrl = page.url();
 
-  // ── Basic fields ──
-  const name = await trySelectors(page, SELECTORS.name);
-  const headline = await trySelectors(page, SELECTORS.headline);
-  const location = await trySelectors(page, SELECTORS.location);
-  const about = await trySelectors(page, SELECTORS.about);
-
-  // ── Experience ──
-  const experience = [];
+  // Wait for profile content to render
   try {
-    const expItems = await trySelectorsAll(page, SELECTORS.experience.container);
-    for (const item of expItems.slice(0, 10)) {
-      const title = await getTextFromElement(item, SELECTORS.experience.title);
-      const company = await getTextFromElement(item, SELECTORS.experience.company);
-      const duration = await getTextFromElement(item, SELECTORS.experience.duration);
-      if (title || company) {
-        experience.push({ title, company, duration, location: '' });
+    await page.waitForSelector('h1', { timeout: 15000 });
+  } catch (e) {
+    logger.warn('Profile h1 not found within timeout');
+  }
+  await new Promise(r => setTimeout(r, 3000));
+
+  const data = await page.evaluate(() => {
+    const SECTION_HEADERS = new Set([
+      'About', 'Highlights', 'Activity', 'Experience', 'Education',
+      'Skills', 'Recommendations', 'Accomplishments', 'Contact',
+      'Featured', 'Courses', 'Projects', 'Certifications', 'Causes',
+      'Follow', 'Message', 'Connect', 'More', 'See all', 'See more',
+      'Other similar profiles', 'Use the LinkedIn app'
+    ]);
+    const NAV_LINES = new Set([
+      'Home', 'My Network', 'Post', 'Notifications', 'Jobs',
+      'Continue', 'Skip to main content'
+    ]);
+
+    // Get all body text lines
+    const raw = document.body.innerText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+    // Find name via h1
+    const h1 = document.querySelector('h1');
+    const name = h1 ? h1.innerText.trim() : '';
+
+    // Find name's index in lines
+    const nameIdx = name ? raw.findIndex(l => l === name || l.startsWith(name)) : -1;
+
+    // Extract headline: first long line after name index, skipping degree/premium
+    let headline = '';
+    if (nameIdx >= 0) {
+      for (let i = nameIdx + 1; i < Math.min(nameIdx + 6, raw.length); i++) {
+        const line = raw[i];
+        if (line.match(/^(1st|2nd|3rd|Premium member|Open to work)$/i)) continue;
+        if (line.length > 20 && !SECTION_HEADERS.has(line) && !NAV_LINES.has(line)) {
+          headline = line;
+          break;
+        }
       }
     }
-  } catch (err) {
-    logger.warn('Failed to parse experience section', { error: err.message });
-  }
 
-  // ── Education ──
-  const education = [];
-  try {
-    const eduItems = await trySelectorsAll(page, SELECTORS.education.container);
-    for (const item of eduItems.slice(0, 5)) {
-      const school = await getTextFromElement(item, SELECTORS.education.school);
-      const degree = await getTextFromElement(item, SELECTORS.education.degree);
-      const years = await getTextFromElement(item, SELECTORS.education.years);
-      if (school) {
-        education.push({ school, degree, years });
+    // Extract location: first line after name that contains a country/state pattern
+    // or contains "connections"
+    let location = '';
+    if (nameIdx >= 0) {
+      for (let i = nameIdx + 1; i < Math.min(nameIdx + 8, raw.length); i++) {
+        const line = raw[i];
+        if (line.includes('connections') || line.includes('followers') ||
+            line.match(/[A-Z][a-z]+.*,.*[A-Z][a-z]+/)) {
+          location = line.replace(/\s*\d+\+?\s*(connections|followers).*/i, '').trim();
+          break;
+        }
       }
     }
-  } catch (err) {
-    logger.warn('Failed to parse education section', { error: err.message });
-  }
 
-  // ── Skills ──
-  const skills = [];
-  try {
-    const skillElements = await trySelectorsAll(page, SELECTORS.skills);
-    for (const el of skillElements.slice(0, 10)) {
-      const skill = await el.evaluate(e => e.innerText?.trim() || '');
-      if (skill) skills.push(skill);
+    // Extract sections by finding section headers
+    const sections = {};
+    let currentSection = null;
+    let sectionLines = [];
+    for (let i = 0; i < raw.length; i++) {
+      const line = raw[i];
+      if (SECTION_HEADERS.has(line)) {
+        if (currentSection && sectionLines.length > 0) {
+          sections[currentSection] = [...sectionLines];
+        }
+        currentSection = line;
+        sectionLines = [];
+      } else if (currentSection && !NAV_LINES.has(line) && line !== '\u2026more' && line !== '\u2026See more') {
+        sectionLines.push(line);
+      }
     }
-  } catch (err) {
-    logger.warn('Failed to parse skills section', { error: err.message });
-  }
+    if (currentSection && sectionLines.length > 0) {
+      sections[currentSection] = sectionLines;
+    }
+
+    // About: join all lines in About section
+    const about = sections['About'] ? sections['About'].join('\n') : '';
+
+    // Experience: parse entries from Experience section
+    const experience = [];
+    if (sections['Experience']) {
+      const expLines = sections['Experience'];
+      let i = 0;
+      while (i < expLines.length) {
+        const title = expLines[i];
+        const company = expLines[i + 1] || '';
+        const duration = expLines[i + 2] || '';
+        const loc = expLines[i + 3] || '';
+        if (title && title.length > 2 && !title.match(/^\d+$/)) {
+          experience.push({ title, company, duration, location: loc });
+          i += 4;
+        } else {
+          i++;
+        }
+        if (experience.length >= 10) break;
+      }
+    }
+
+    // Education: parse entries from Education section
+    const education = [];
+    if (sections['Education']) {
+      const eduLines = sections['Education'];
+      let i = 0;
+      while (i < eduLines.length) {
+        const school = eduLines[i];
+        const degree = eduLines[i + 1] || '';
+        const years = eduLines[i + 2] || '';
+        if (school && school.length > 2) {
+          education.push({ school, degree, years });
+          i += 3;
+        } else {
+          i++;
+        }
+        if (education.length >= 5) break;
+      }
+    }
+
+    // Skills: first line of Skills section, split by spaces/commas
+    const skills = [];
+    if (sections['Skills'] && sections['Skills'][0]) {
+      sections['Skills'][0].split(/\s{2,}|,/).map(s => s.trim()).filter(s => s.length > 0).forEach(s => {
+        if (!s.match(/^(See|more|all)$/i)) skills.push(s);
+      });
+    }
+
+    return { name, headline, location, about, experience, education, skills };
+  });
 
   logger.info('Profile parsed successfully', {
-    name: name || 'unknown',
+    name: data.name || 'unknown',
     fieldsFound: {
-      headline: !!headline,
-      location: !!location,
-      about: !!about,
-      experience: experience.length,
-      education: education.length,
-      skills: skills.length
+      headline: !!data.headline,
+      location: !!data.location,
+      about: !!data.about,
+      experience: data.experience.length,
+      education: data.education.length,
+      skills: data.skills.length
     }
   });
 
   return {
-    name,
-    headline,
-    location,
-    about,
-    experience,
-    education,
-    skills,
+    name: data.name,
+    headline: data.headline,
+    location: data.location,
+    about: data.about,
+    experience: data.experience,
+    education: data.education,
+    skills: data.skills,
     profile_url: profileUrl
   };
 }
