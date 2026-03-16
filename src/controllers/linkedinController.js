@@ -9,6 +9,7 @@
 
 const linkedinService = require('../services/linkedinService');
 const logger = require('../utils/logger');
+const { logActivity } = require('../utils/activityLogger');
 
 /**
  * Scrape a single LinkedIn profile.
@@ -26,6 +27,10 @@ async function scrapeProfile(req, res) {
 
   try {
     const result = await linkedinService.scrapeProfile(userId, profile_url);
+    logActivity('info', 'scrape_profile', 'Profile scraped successfully', userId, {
+      profile_url,
+      name: result.data?.name || 'unknown'
+    });
     return res.status(200).json(result);
 
   } catch (err) {
@@ -54,6 +59,9 @@ async function scrapeProfile(req, res) {
       profile_url,
       error: err.message
     });
+    logActivity('error', 'scrape_profile', 'Profile scrape failed: ' + err.message, userId, {
+      profile_url
+    });
 
     return res.status(500).json({
       success: false,
@@ -78,6 +86,10 @@ async function scrapeSearchResults(req, res) {
 
   try {
     const result = await linkedinService.scrapeSearchResults(userId, search_url);
+    logActivity('info', 'search_export', 'Search export completed', userId, {
+      search_url,
+      count: result.count
+    });
     return res.status(200).json(result);
 
   } catch (err) {
@@ -105,6 +117,9 @@ async function scrapeSearchResults(req, res) {
       userId,
       search_url,
       error: err.message
+    });
+    logActivity('error', 'search_export', 'Search export failed: ' + err.message, userId, {
+      search_url
     });
 
     return res.status(500).json({
@@ -157,6 +172,11 @@ async function scrapeBulk(req, res) {
 
   try {
     const result = await linkedinService.scrapeBulk(userId, profile_urls);
+    logActivity('info', 'bulk_scrape', 'Bulk scrape completed', userId, {
+      total_requested: result.total_requested,
+      total_scraped: result.total_scraped,
+      failed: result.failed
+    });
     return res.status(200).json(result);
 
   } catch (err) {
@@ -178,6 +198,9 @@ async function scrapeBulk(req, res) {
     }
 
     logger.error('Bulk scrape failed', { userId, error: err.message });
+    logActivity('error', 'bulk_scrape', 'Bulk scrape failed: ' + err.message, userId, {
+      count: profile_urls?.length
+    });
     return res.status(500).json({
       success: false,
       error: 'Bulk scraping failed. Please try again.',
