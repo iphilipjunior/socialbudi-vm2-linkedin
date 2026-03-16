@@ -256,7 +256,7 @@ async function scrapeBulk(userId, profileUrls) {
       const page = await puppeteerService.createPage(browser, cookie, userAgent, jsessionid, bcookie);
 
       logger.info('Navigating to profile', { profileUrl, index: i + 1, total: urls.length });
-      await page.goto(profileUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+      await page.goto(profileUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
       const profileData = await parser.parseProfile(page);
       results.push({ ...profileData, profile_url: profileUrl });
